@@ -50,13 +50,59 @@ class GetStatisticsUseCase(
             .sortedByDescending { it.timestamp }
             .take(50)
 
+        // Calculate insights for current month
+        val insights = calculateInsights(transactions)
+
         return Statistics(
             totalSent = totalSent,
             totalReceived = totalReceived,
             netBalance = totalReceived - totalSent,
             categorySummaries = categorySummaries,
             monthlySummaries = monthlySummaries,
-            recentTransactions = recentTransactions
+            recentTransactions = recentTransactions,
+            insights = insights
+        )
+    }
+
+    private fun calculateInsights(transactions: List<Transaction>): Insights {
+        val calendar = Calendar.getInstance()
+        val currentMonth = calendar.get(Calendar.MONTH)
+        val currentYear = calendar.get(Calendar.YEAR)
+
+        // Filter to current month's sent transactions
+        val currentMonthTransactions = transactions.filter { transaction ->
+            calendar.timeInMillis = transaction.timestamp
+            calendar.get(Calendar.MONTH) == currentMonth &&
+                    calendar.get(Calendar.YEAR) == currentYear &&
+                    transaction.transactionType == TransactionType.SENT
+        }
+
+        // Top merchant by total amount spent
+        val topMerchant = currentMonthTransactions
+            .groupBy { it.recipientName }
+            .mapValues { (_, trans) -> trans.sumOf { it.amount } }
+            .maxByOrNull { it.value }
+            ?.let { MerchantInsight(it.key, it.value) }
+
+        // Most frequent category by transaction count
+        val frequentCategory = currentMonthTransactions
+            .groupBy { it.category }
+            .mapValues { (_, trans) -> trans.size }
+            .maxByOrNull { it.value }
+            ?.let { CategoryInsight(it.key, it.value) }
+
+        // Average daily spend this month
+        val calendar2 = Calendar.getInstance()
+        val dayOfMonth = calendar2.get(Calendar.DAY_OF_MONTH)
+        val totalSpentThisMonth = currentMonthTransactions.sumOf { it.amount }
+        val avgDailySpend = if (dayOfMonth > 0) totalSpentThisMonth / dayOfMonth else 0.0
+
+        return Insights(
+            topMerchant = topMerchant,
+            frequentCategory = frequentCategory,
+            avgDailySpend = avgDailySpend,
+            totalSpentThisMonth = totalSpentThisMonth,
+            transactionsThisMonth = currentMonthTransactions.size
         )
     }
 
@@ -107,6 +153,25 @@ class GetStatisticsUseCase(
         val netBalance: Double,
         val categorySummaries: List<CategorySummary>,
         val monthlySummaries: List<MonthlySummary>,
-        val recentTransactions: List<Transaction>
+        val recentTransactions: List<Transaction>,
+        val insights: Insights = Insights()
+    )
+
+    data class Insights(
+        val topMerchant: MerchantInsight? = null,
+        val frequentCategory: CategoryInsight? = null,
+        val avgDailySpend: Double = 0.0,
+        val totalSpentThisMonth: Double = 0.0,
+        val transactionsThisMonth: Int = 0
+    )
+
+    data class MerchantInsight(
+        val name: String,
+        val amount: Double
+    )
+
+    data class CategoryInsight(
+        val name: String,
+        val transactionCount: Int
     )
 }

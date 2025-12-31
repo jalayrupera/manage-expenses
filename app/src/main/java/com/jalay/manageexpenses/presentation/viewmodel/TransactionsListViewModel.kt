@@ -1,22 +1,27 @@
 package com.jalay.manageexpenses.presentation.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.jalay.manageexpenses.AppContainer
 import com.jalay.manageexpenses.domain.model.Transaction
 import com.jalay.manageexpenses.domain.model.TransactionType
 import com.jalay.manageexpenses.domain.usecase.GetTransactionsUseCase
 import com.jalay.manageexpenses.domain.usecase.SearchTransactionsUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class TransactionsListViewModel(
+@HiltViewModel
+class TransactionsListViewModel @Inject constructor(
     private val getTransactionsUseCase: GetTransactionsUseCase,
     private val searchTransactionsUseCase: SearchTransactionsUseCase,
-    private val filterCategory: String? = null
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val filterCategory: String? = savedStateHandle.get<String>("category")
 
     private val _uiState = MutableStateFlow<TransactionsListUiState>(TransactionsListUiState.Initial)
     val uiState: StateFlow<TransactionsListUiState> = _uiState.asStateFlow()

@@ -3,39 +3,32 @@ package com.jalay.manageexpenses.presentation.ui.categories
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.jalay.manageexpenses.AppContainer
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.jalay.manageexpenses.domain.model.CategorySummary
-import com.jalay.manageexpenses.domain.usecase.GetStatisticsUseCase
 import com.jalay.manageexpenses.presentation.ui.components.*
 import com.jalay.manageexpenses.presentation.ui.theme.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import com.jalay.manageexpenses.presentation.viewmodel.CategoriesViewModel
+import com.jalay.manageexpenses.presentation.viewmodel.CategoriesUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoriesScreen(
-    appContainer: AppContainer,
     onNavigateBack: () -> Unit,
-    onNavigateToCategory: (String) -> Unit
+    onNavigateToCategory: (String) -> Unit,
+    onNavigateToCategoryRules: () -> Unit = {},
+    viewModel: CategoriesViewModel = hiltViewModel()
 ) {
-    val viewModel: CategoriesViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = CategoriesViewModelFactory(appContainer)
-    )
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
@@ -55,6 +48,15 @@ fun CategoriesScreen(
                             Icons.Default.ArrowBack,
                             contentDescription = "Back",
                             tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToCategoryRules) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Category Rules",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
@@ -234,51 +236,5 @@ private fun formatAmount(amount: Double): String {
         amount >= 10_00_000 -> String.format("%.1fL", amount / 100000)
         amount >= 1000 -> String.format("%,.0f", amount)
         else -> String.format("%.2f", amount)
-    }
-}
-
-class CategoriesViewModel(
-    private val getStatisticsUseCase: GetStatisticsUseCase
-) : ViewModel() {
-
-    private val _uiState = MutableStateFlow<CategoriesUiState>(CategoriesUiState.Loading)
-    val uiState: StateFlow<CategoriesUiState> = _uiState.asStateFlow()
-
-    init {
-        loadCategories()
-    }
-
-    private fun loadCategories() {
-        viewModelScope.launch {
-            try {
-                val statistics = getStatisticsUseCase()
-                // Sort by sent amount (highest spending first)
-                val sortedCategories = statistics.categorySummaries
-                    .sortedByDescending { it.sentAmount }
-                _uiState.value = CategoriesUiState.Success(sortedCategories)
-            } catch (e: Exception) {
-                _uiState.value = CategoriesUiState.Error(e.message ?: "Unknown error")
-            }
-        }
-    }
-}
-
-sealed class CategoriesUiState {
-    object Loading : CategoriesUiState()
-    data class Success(val categories: List<CategorySummary>) : CategoriesUiState()
-    data class Error(val message: String) : CategoriesUiState()
-}
-
-class CategoriesViewModelFactory(
-    private val appContainer: AppContainer
-) : androidx.lifecycle.ViewModelProvider.Factory {
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(CategoriesViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return CategoriesViewModel(
-                getStatisticsUseCase = appContainer.getGetStatisticsUseCase(appContainer.getContext())
-            ) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

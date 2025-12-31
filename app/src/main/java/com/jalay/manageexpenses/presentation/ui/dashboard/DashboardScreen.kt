@@ -1,6 +1,5 @@
 package com.jalay.manageexpenses.presentation.ui.dashboard
 
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,6 +9,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Savings
+import androidx.compose.material.icons.outlined.TrendingUp
+import com.jalay.manageexpenses.domain.usecase.GetStatisticsUseCase
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,8 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.jalay.manageexpenses.AppContainer
-import com.jalay.manageexpenses.domain.model.Transaction
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.jalay.manageexpenses.presentation.ui.components.*
 import com.jalay.manageexpenses.presentation.ui.theme.*
 import com.jalay.manageexpenses.presentation.viewmodel.DashboardViewModel
@@ -28,19 +29,33 @@ import com.jalay.manageexpenses.presentation.viewmodel.DashboardUiState
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    appContainer: AppContainer,
     onNavigateToTransactions: () -> Unit,
     onNavigateToCategories: () -> Unit,
     onNavigateToExport: () -> Unit,
-    onNavigateToTransactionDetail: (Long) -> Unit
+    onNavigateToBudget: () -> Unit,
+    onNavigateToAddTransaction: () -> Unit,
+    onNavigateToTrends: () -> Unit,
+    onNavigateToTransactionDetail: (Long) -> Unit,
+    viewModel: DashboardViewModel = hiltViewModel()
 ) {
-    val viewModel: DashboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = DashboardViewModelFactory(appContainer)
-    )
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        floatingActionButton = {
+            if (uiState is DashboardUiState.Success) {
+                FloatingActionButton(
+                    onClick = onNavigateToAddTransaction,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Add Transaction"
+                    )
+                }
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -51,6 +66,20 @@ fun DashboardScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToTrends) {
+                        Icon(
+                            Icons.Outlined.TrendingUp,
+                            contentDescription = "Trends",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(onClick = onNavigateToBudget) {
+                        Icon(
+                            Icons.Outlined.Savings,
+                            contentDescription = "Budgets",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     IconButton(onClick = onNavigateToCategories) {
                         Icon(
                             Icons.Outlined.Category,
@@ -289,6 +318,17 @@ private fun DashboardContent(
             }
         }
 
+        // Monthly Insights Section
+        if (statistics.insights.transactionsThisMonth > 0) {
+            item {
+                SectionHeader(title = "This Month's Insights")
+            }
+
+            item {
+                InsightsGrid(insights = statistics.insights)
+            }
+        }
+
         // Recent Transactions Header
         item {
             SectionHeader(
@@ -457,20 +497,118 @@ private fun formatLargeAmount(amount: Double): String {
     }
 }
 
-class DashboardViewModelFactory(
-    private val appContainer: AppContainer
-) : androidx.lifecycle.ViewModelProvider.Factory {
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(DashboardViewModel::class.java)) {
-            val context = appContainer.getContext()
-            val sharedPreferences = context.getSharedPreferences("manage_expenses_prefs", Context.MODE_PRIVATE)
-            @Suppress("UNCHECKED_CAST")
-            return DashboardViewModel(
-                getStatisticsUseCase = appContainer.getGetStatisticsUseCase(context),
-                importHistoricalSmsUseCase = appContainer.getImportHistoricalSmsUseCase(context),
-                sharedPreferences = sharedPreferences
-            ) as T
+@Composable
+private fun InsightsGrid(
+    insights: GetStatisticsUseCase.Insights
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        // Row 1: Avg Daily Spend and Total This Month
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            InsightCard(
+                title = "Avg Daily",
+                value = "₹${formatLargeAmount(insights.avgDailySpend)}",
+                icon = Icons.Default.CalendarToday,
+                modifier = Modifier.weight(1f)
+            )
+            InsightCard(
+                title = "This Month",
+                value = "₹${formatLargeAmount(insights.totalSpentThisMonth)}",
+                icon = Icons.Default.AccountBalanceWallet,
+                modifier = Modifier.weight(1f)
+            )
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
+
+        // Row 2: Top Merchant and Frequent Category
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            insights.topMerchant?.let { merchant ->
+                InsightCard(
+                    title = "Top Merchant",
+                    value = merchant.name.take(15) + if (merchant.name.length > 15) "..." else "",
+                    subtitle = "₹${formatLargeAmount(merchant.amount)}",
+                    icon = Icons.Default.Store,
+                    modifier = Modifier.weight(1f)
+                )
+            } ?: InsightCard(
+                title = "Top Merchant",
+                value = "No data",
+                icon = Icons.Default.Store,
+                modifier = Modifier.weight(1f)
+            )
+
+            insights.frequentCategory?.let { category ->
+                InsightCard(
+                    title = "Top Category",
+                    value = category.name.take(12) + if (category.name.length > 12) "..." else "",
+                    subtitle = "${category.transactionCount} transactions",
+                    icon = Icons.Default.Category,
+                    modifier = Modifier.weight(1f)
+                )
+            } ?: InsightCard(
+                title = "Top Category",
+                value = "No data",
+                icon = Icons.Default.Category,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun InsightCard(
+    title: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null
+) {
+    ShadcnCard(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.md)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(Spacing.xs))
+
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
+            )
+
+            subtitle?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }

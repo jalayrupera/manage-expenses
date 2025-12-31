@@ -1,10 +1,14 @@
 package com.jalay.manageexpenses.presentation.ui.transactions
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.jalay.manageexpenses.domain.model.Transaction
+import com.jalay.manageexpenses.util.FormatUtils
+import java.util.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Receipt
@@ -18,7 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.jalay.manageexpenses.AppContainer
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.jalay.manageexpenses.presentation.ui.components.*
 import com.jalay.manageexpenses.presentation.ui.theme.*
 import com.jalay.manageexpenses.presentation.viewmodel.FilterType
@@ -29,14 +33,11 @@ import com.jalay.manageexpenses.presentation.viewmodel.TransactionsListUiState
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionsListScreen(
-    appContainer: AppContainer,
     onNavigateToDetail: (Long) -> Unit,
     onNavigateBack: () -> Unit,
-    filterCategory: String? = null
+    filterCategory: String? = null,
+    viewModel: TransactionsListViewModel = hiltViewModel()
 ) {
-    val viewModel: TransactionsListViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = TransactionsListViewModelFactory(appContainer, filterCategory)
-    )
     val uiState by viewModel.uiState.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -177,21 +178,10 @@ fun TransactionsListScreen(
                                 "Your transactions will appear here"
                         )
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(Spacing.lg),
-                            verticalArrangement = Arrangement.spacedBy(Spacing.md)
-                        ) {
-                            items(
-                                items = state.filteredTransactions,
-                                key = { it.id ?: it.hashCode() }
-                            ) { transaction ->
-                                TransactionCard(
-                                    transaction = transaction,
-                                    onClick = { onNavigateToDetail(transaction.id ?: 0) }
-                                )
-                            }
-                        }
+                        TransactionListWithStickyHeaders(
+                            transactions = state.filteredTransactions,
+                            onTransactionClick = { onNavigateToDetail(it.id ?: 0) }
+                        )
                     }
                 }
 
@@ -329,26 +319,63 @@ fun ModernFilterChips(
                     labelColor = MaterialTheme.colorScheme.onSurface
                 ),
                 border = if (isSelected) null else FilterChipDefaults.filterChipBorder(
-                    borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    selectedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                 )
             )
         }
     }
 }
 
-class TransactionsListViewModelFactory(
-    private val appContainer: AppContainer,
-    private val filterCategory: String? = null
-) : androidx.lifecycle.ViewModelProvider.Factory {
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(TransactionsListViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return TransactionsListViewModel(
-                getTransactionsUseCase = appContainer.getGetTransactionsUseCase(appContainer.getContext()),
-                searchTransactionsUseCase = appContainer.getSearchTransactionsUseCase(appContainer.getContext()),
-                filterCategory = filterCategory
-            ) as T
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TransactionListWithStickyHeaders(
+    transactions: List<Transaction>,
+    onTransactionClick: (Transaction) -> Unit
+) {
+    // Group transactions by date
+    val groupedTransactions = remember(transactions) {
+        transactions.groupBy { transaction ->
+            FormatUtils.formatDateHeader(transaction.timestamp)
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.md)
+    ) {
+        groupedTransactions.forEach { (dateHeader, transactionsForDate) ->
+            stickyHeader(key = dateHeader) {
+                DateStickyHeader(dateHeader = dateHeader)
+            }
+
+            items(
+                items = transactionsForDate,
+                key = { it.id ?: it.hashCode() }
+            ) { transaction ->
+                TransactionCard(
+                    transaction = transaction,
+                    onClick = { onTransactionClick(transaction) },
+                    modifier = Modifier.padding(vertical = Spacing.xs)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DateStickyHeader(dateHeader: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(vertical = Spacing.sm)
+    ) {
+        Text(
+            text = dateHeader,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

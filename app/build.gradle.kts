@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -38,6 +39,9 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
     buildFeatures {
         compose = true
     }
@@ -70,11 +74,18 @@ dependencies {
 
     implementation(libs.coroutines.android)
 
+    implementation(libs.hilt.android)
+    implementation(libs.hilt.navigation.compose)
+    ksp(libs.hilt.compiler)
+
     implementation(libs.mpandroidchart)
     implementation(libs.kotlin.csv.jvm)
     implementation(libs.coil.compose)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.coroutines.test)
+    testImplementation(libs.turbine)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.compose.bom))

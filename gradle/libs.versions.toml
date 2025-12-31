@@ -13,11 +13,16 @@ navigation-compose = "2.7.4"
 lifecycle-compose = "2.6.2"
 room = "2.6.0"
 coroutines = "1.7.3"
+coroutines-test = "1.7.3"
 mpandroidchart = "v3.1.0"
 kotlin-csv = "1.9.3"
 coil = "2.4.0"
 ksp = "2.0.21-1.0.28"
 compose-compiler = "1.5.14"
+hilt = "2.51.1"
+hilt-navigation-compose = "1.2.0"
+mockk = "1.13.9"
+turbine = "1.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -41,14 +46,23 @@ room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines-test" }
+
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hilt-navigation-compose" }
 
 mpandroidchart = { group = "com.github.PhilJay", name = "MPAndroidChart", version.ref = "mpandroidchart" }
 kotlin-csv-jvm = { group = "com.github.doyaaaaaken", name = "kotlin-csv-jvm", version.ref = "kotlin-csv" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 

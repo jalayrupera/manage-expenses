@@ -1,17 +1,19 @@
 package com.jalay.manageexpenses.presentation.viewmodel
 
-import android.content.Context
 import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jalay.manageexpenses.domain.usecase.GetStatisticsUseCase
 import com.jalay.manageexpenses.domain.usecase.ImportHistoricalSmsUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class DashboardViewModel(
+@HiltViewModel
+class DashboardViewModel @Inject constructor(
     private val getStatisticsUseCase: GetStatisticsUseCase,
     private val importHistoricalSmsUseCase: ImportHistoricalSmsUseCase,
     private val sharedPreferences: SharedPreferences

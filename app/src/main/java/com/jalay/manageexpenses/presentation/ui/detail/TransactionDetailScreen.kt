@@ -3,9 +3,7 @@ package com.jalay.manageexpenses.presentation.ui.detail
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -14,30 +12,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.jalay.manageexpenses.AppContainer
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.jalay.manageexpenses.domain.model.Transaction
 import com.jalay.manageexpenses.domain.model.TransactionType
 import com.jalay.manageexpenses.presentation.ui.components.*
 import com.jalay.manageexpenses.presentation.ui.theme.*
 import com.jalay.manageexpenses.presentation.viewmodel.TransactionDetailUiState
 import com.jalay.manageexpenses.presentation.viewmodel.TransactionDetailViewModel
-import java.text.SimpleDateFormat
-import java.util.*
+import com.jalay.manageexpenses.util.FormatUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionDetailScreen(
-    appContainer: AppContainer,
     transactionId: Long,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: TransactionDetailViewModel = hiltViewModel()
 ) {
-    val viewModel: TransactionDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = TransactionDetailViewModelFactory(appContainer)
-    )
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(transactionId) {
@@ -155,7 +147,7 @@ fun TransactionDetailContent(
 
                 // Amount
                 Text(
-                    text = "$amountPrefix₹${formatAmount(transaction.amount)}",
+                    text = "$amountPrefix₹${FormatUtils.formatAmount(transaction.amount)}",
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
                     color = amountColor
@@ -195,8 +187,8 @@ fun TransactionDetailContent(
 
                 ShadcnDivider()
 
-                DetailRow("Date", formatDate(transaction.timestamp))
-                DetailRow("Time", formatTime(transaction.timestamp))
+                DetailRow("Date", FormatUtils.formatFullDate(transaction.timestamp))
+                DetailRow("Time", FormatUtils.formatTime(transaction.timestamp))
                 DetailRow("UPI App", transaction.upiApp)
                 DetailRow("Reference", transaction.transactionRef ?: "N/A")
             }
@@ -359,36 +351,4 @@ private fun DetailRow(
     }
 }
 
-private fun formatAmount(amount: Double): String {
-    return if (amount >= 1000) {
-        String.format("%,.0f", amount)
-    } else {
-        String.format("%.2f", amount)
-    }
-}
 
-private fun formatDate(timestamp: Long): String {
-    val sdf = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault())
-    return sdf.format(Date(timestamp))
-}
-
-private fun formatTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
-    return sdf.format(Date(timestamp))
-}
-
-class TransactionDetailViewModelFactory(
-    private val appContainer: AppContainer
-) : androidx.lifecycle.ViewModelProvider.Factory {
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(TransactionDetailViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return TransactionDetailViewModel(
-                getTransactionsUseCase = appContainer.getGetTransactionsUseCase(appContainer.getContext()),
-                updateTransactionNotesUseCase = appContainer.getUpdateTransactionNotesUseCase(appContainer.getContext()),
-                updateCategoryUseCase = appContainer.getUpdateCategoryUseCase(appContainer.getContext())
-            ) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}

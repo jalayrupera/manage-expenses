@@ -4,14 +4,24 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
-import android.telephony.SmsMessage
 import android.util.Log
+import com.jalay.manageexpenses.data.repository.TransactionRepository
+import com.jalay.manageexpenses.domain.usecase.ParseSmsUseCase
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class SmsReceiver : BroadcastReceiver() {
+
+    @Inject
+    lateinit var transactionRepository: TransactionRepository
+
+    @Inject
+    lateinit var parseSmsUseCase: ParseSmsUseCase
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -25,29 +35,23 @@ class SmsReceiver : BroadcastReceiver() {
 
                 Log.d("SmsReceiver", "Received SMS from $sender")
 
-                context?.let { ctx ->
-                    scope.launch {
-                        try {
-                            val appContainer = com.jalay.manageexpenses.AppContainer.getInstance(ctx)
-                            val transactionRepository = appContainer.getTransactionRepository(ctx)
-                            val parseSmsUseCase = appContainer.getParseSmsUseCase(ctx)
+                scope.launch {
+                    try {
+                        val transaction = parseSmsUseCase(body ?: "", sender ?: "", timestamp)
+                        if (transaction != null) {
+                            val isDuplicate = transaction.transactionRef?.let { ref ->
+                                transactionRepository.isTransactionDuplicate(ref)
+                            } ?: false
 
-                            val transaction = parseSmsUseCase(body ?: "", sender ?: "", timestamp)
-                            if (transaction != null) {
-                                val isDuplicate = transaction.transactionRef?.let { ref ->
-                                    transactionRepository.isTransactionDuplicate(ref)
-                                } ?: false
-
-                                if (!isDuplicate) {
-                                    transactionRepository.insertTransaction(transaction)
-                                    Log.d("SmsReceiver", "Transaction saved: ${transaction.recipientName} - ₹${transaction.amount}")
-                                } else {
-                                    Log.d("SmsReceiver", "Duplicate transaction detected, skipping")
-                                }
+                            if (!isDuplicate) {
+                                transactionRepository.insertTransaction(transaction)
+                                Log.d("SmsReceiver", "Transaction saved: ${transaction.recipientName} - ₹${transaction.amount}")
+                            } else {
+                                Log.d("SmsReceiver", "Duplicate transaction detected, skipping")
                             }
-                        } catch (e: Exception) {
-                            Log.e("SmsReceiver", "Error processing SMS", e)
                         }
+                    } catch (e: Exception) {
+                        Log.e("SmsReceiver", "Error processing SMS", e)
                     }
                 }
             }

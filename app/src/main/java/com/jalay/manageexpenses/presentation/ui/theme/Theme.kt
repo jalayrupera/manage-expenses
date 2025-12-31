@@ -8,10 +8,15 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.jalay.manageexpenses.data.preferences.ThemeMode
+
+val LocalThemeMode = staticCompositionLocalOf { ThemeMode.SYSTEM }
+val LocalThemeSetter = staticCompositionLocalOf<(ThemeMode) -> Unit> { {} }
 
 private val DarkColorScheme = darkColorScheme(
     // Background colors
@@ -107,10 +112,16 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun ManageExpensesTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     dynamicColor: Boolean = false, // Disabled for consistent shadcn styling
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     val view = LocalView.current

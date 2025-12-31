@@ -8,7 +8,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.TrendingUp
@@ -23,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.jalay.manageexpenses.data.preferences.ThemeMode
 import com.jalay.manageexpenses.domain.model.BudgetWithSpending
 import com.jalay.manageexpenses.domain.usecase.GetStatisticsUseCase
 import com.jalay.manageexpenses.presentation.ui.components.*
@@ -44,6 +47,11 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // Theme state
+    val currentThemeMode = LocalThemeMode.current
+    val setThemeMode = LocalThemeSetter.current
+    var showThemeMenu by remember { mutableStateOf(false) }
 
     // Track refresh state outside the when block so it persists across state changes
     var isRefreshing by remember { mutableStateOf(false) }
@@ -81,6 +89,70 @@ fun DashboardScreen(
                     )
                 },
                 actions = {
+                    // Theme toggle button
+                    Box {
+                        IconButton(onClick = { showThemeMenu = true }) {
+                            Icon(
+                                imageVector = when (currentThemeMode) {
+                                    ThemeMode.LIGHT -> Icons.Outlined.LightMode
+                                    ThemeMode.DARK -> Icons.Outlined.DarkMode
+                                    ThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
+                                },
+                                contentDescription = "Theme",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showThemeMenu,
+                            onDismissRequest = { showThemeMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Light") },
+                                onClick = {
+                                    setThemeMode(ThemeMode.LIGHT)
+                                    showThemeMenu = false
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Outlined.LightMode, contentDescription = null)
+                                },
+                                trailingIcon = {
+                                    if (currentThemeMode == ThemeMode.LIGHT) {
+                                        Icon(Icons.Default.Check, contentDescription = null)
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Dark") },
+                                onClick = {
+                                    setThemeMode(ThemeMode.DARK)
+                                    showThemeMenu = false
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Outlined.DarkMode, contentDescription = null)
+                                },
+                                trailingIcon = {
+                                    if (currentThemeMode == ThemeMode.DARK) {
+                                        Icon(Icons.Default.Check, contentDescription = null)
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("System") },
+                                onClick = {
+                                    setThemeMode(ThemeMode.SYSTEM)
+                                    showThemeMenu = false
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.BrightnessAuto, contentDescription = null)
+                                },
+                                trailingIcon = {
+                                    if (currentThemeMode == ThemeMode.SYSTEM) {
+                                        Icon(Icons.Default.Check, contentDescription = null)
+                                    }
+                                }
+                            )
+                        }
+                    }
                     IconButton(onClick = onNavigateToCategories) {
                         Icon(
                             Icons.Outlined.Category,

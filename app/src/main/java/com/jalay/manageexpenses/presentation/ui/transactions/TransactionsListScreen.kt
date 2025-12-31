@@ -39,6 +39,7 @@ fun TransactionsListScreen(
     onNavigateToDetail: (Long) -> Unit,
     onNavigateBack: () -> Unit,
     filterCategory: String? = null,
+    showBackButton: Boolean = true,
     viewModel: TransactionsListViewModel = hiltViewModel()
 ) {
     val transactionsPaged = viewModel.transactionsPaged.collectAsLazyPagingItems()
@@ -61,12 +62,14 @@ fun TransactionsListScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                    if (showBackButton) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Back",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

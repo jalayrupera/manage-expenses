@@ -70,27 +70,6 @@ fun DashboardScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToTrends) {
-                        Icon(
-                            Icons.Outlined.TrendingUp,
-                            contentDescription = "Trends",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    IconButton(onClick = onNavigateToRecurring) {
-                        Icon(
-                            Icons.Outlined.Repeat,
-                            contentDescription = "Recurring",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    IconButton(onClick = onNavigateToBudget) {
-                        Icon(
-                            Icons.Outlined.Savings,
-                            contentDescription = "Budgets",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
                     IconButton(onClick = onNavigateToCategories) {
                         Icon(
                             Icons.Outlined.Category,

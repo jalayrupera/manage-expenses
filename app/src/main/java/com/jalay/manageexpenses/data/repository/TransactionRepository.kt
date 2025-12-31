@@ -7,6 +7,10 @@ import com.jalay.manageexpenses.data.local.entity.TransactionEntity
 import com.jalay.manageexpenses.domain.model.CategoryMapping
 import com.jalay.manageexpenses.domain.model.Transaction
 import com.jalay.manageexpenses.domain.model.TransactionType
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.Calendar
@@ -18,6 +22,51 @@ class TransactionRepository(
     fun getAllTransactions(): Flow<List<Transaction>> {
         return transactionDao.getAllTransactions().map { entities ->
             entities.map { it.toDomainModel() }
+        }
+    }
+
+    fun getPagedTransactions(pageSize: Int = 50, type: TransactionType? = null): Flow<PagingData<Transaction>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = pageSize,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = { 
+                if (type == null) transactionDao.getPagedTransactions()
+                else transactionDao.getPagedTransactionsByType(type.name)
+            }
+        ).flow.map { pagingData ->
+            pagingData.map { it.toDomainModel() }
+        }
+    }
+
+    fun getPagedTransactionsByCategory(category: String, pageSize: Int = 50, type: TransactionType? = null): Flow<PagingData<Transaction>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = pageSize,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = { 
+                if (type == null) transactionDao.getPagedTransactionsByCategory(category)
+                else transactionDao.getPagedTransactionsByCategoryAndType(category, type.name)
+            }
+        ).flow.map { pagingData ->
+            pagingData.map { it.toDomainModel() }
+        }
+    }
+
+    fun searchPagedTransactions(query: String, pageSize: Int = 50, type: TransactionType? = null): Flow<PagingData<Transaction>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = pageSize,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = { 
+                if (type == null) transactionDao.searchPagedTransactions(query)
+                else transactionDao.searchPagedTransactionsByType(query, type.name)
+            }
+        ).flow.map { pagingData ->
+            pagingData.map { it.toDomainModel() }
         }
     }
 

@@ -12,12 +12,9 @@ class ImportHistoricalSmsUseCase(
     private val transactionRepository: TransactionRepository
 ) {
     suspend operator fun invoke(
-        days: Int,
+        days: Int? = null,
         onProgress: (Int, Int) -> Unit
     ): ImportResult {
-        val endTime = System.currentTimeMillis()
-        val startTime = endTime - (days * 24L * 60L * 60L * 1000L)
-
         val uri = Uri.parse("content://sms/inbox")
         val projection = arrayOf(
             Telephony.Sms._ID,
@@ -25,8 +22,16 @@ class ImportHistoricalSmsUseCase(
             Telephony.Sms.BODY,
             Telephony.Sms.DATE
         )
-        val selection = "${Telephony.Sms.DATE} >= ?"
-        val selectionArgs = arrayOf(startTime.toString())
+
+        var selection: String? = null
+        var selectionArgs: Array<String>? = null
+
+        if (days != null && days > 0) {
+            val endTime = System.currentTimeMillis()
+            val startTime = endTime - (days * 24L * 60L * 60L * 1000L)
+            selection = "${Telephony.Sms.DATE} >= ?"
+            selectionArgs = arrayOf(startTime.toString())
+        }
 
         val cursor = contentResolver.query(
             uri,

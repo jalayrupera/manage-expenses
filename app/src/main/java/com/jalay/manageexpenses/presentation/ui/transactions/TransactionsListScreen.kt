@@ -1,10 +1,8 @@
 package com.jalay.manageexpenses.presentation.ui.transactions
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.jalay.manageexpenses.domain.model.Transaction
 import com.jalay.manageexpenses.util.FormatUtils
@@ -28,7 +26,12 @@ import com.jalay.manageexpenses.presentation.ui.theme.*
 import com.jalay.manageexpenses.presentation.viewmodel.FilterType
 import com.jalay.manageexpenses.presentation.viewmodel.SortType
 import com.jalay.manageexpenses.presentation.viewmodel.TransactionsListViewModel
-import com.jalay.manageexpenses.presentation.viewmodel.TransactionsListUiState
+import com.jalay.manageexpenses.presentation.viewmodel.TransactionListItem
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemContentType
+import androidx.paging.compose.itemKey
+import androidx.compose.foundation.ExperimentalFoundationApi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,9 +41,11 @@ fun TransactionsListScreen(
     filterCategory: String? = null,
     viewModel: TransactionsListViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val transactionsPaged = viewModel.transactionsPaged.collectAsLazyPagingItems()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val filterType by viewModel.filterType.collectAsState()
+    val sortType by viewModel.sortType.collectAsState()
 
-    var searchQuery by remember { mutableStateOf("") }
     var showSortMenu by remember { mutableStateOf(false) }
     val title = filterCategory ?: "Transactions"
 
@@ -80,7 +85,6 @@ fun TransactionsListScreen(
             ModernSearchBar(
                 query = searchQuery,
                 onQueryChange = {
-                    searchQuery = it
                     viewModel.searchTransactions(it)
                 },
                 modifier = Modifier
@@ -98,8 +102,7 @@ fun TransactionsListScreen(
             ) {
                 // Filter Chips
                 ModernFilterChips(
-                    currentFilter = (uiState as? TransactionsListUiState.Success)?.filterType
-                        ?: FilterType.ALL,
+                    currentFilter = filterType,
                     onFilterSelected = { viewModel.filterByType(it) },
                     modifier = Modifier.weight(1f)
                 )
@@ -118,12 +121,9 @@ fun TransactionsListScreen(
                         expanded = showSortMenu,
                         onDismissRequest = { showSortMenu = false }
                     ) {
-                        val currentSort = (uiState as? TransactionsListUiState.Success)?.sortType
-                            ?: SortType.DATE_DESC
-
                         SortMenuItem(
                             text = "Latest First",
-                            isSelected = currentSort == SortType.DATE_DESC,
+                            isSelected = sortType == SortType.DATE_DESC,
                             onClick = {
                                 viewModel.sortBy(SortType.DATE_DESC)
                                 showSortMenu = false
@@ -131,16 +131,16 @@ fun TransactionsListScreen(
                         )
                         SortMenuItem(
                             text = "Oldest First",
-                            isSelected = currentSort == SortType.DATE_ASC,
+                            isSelected = sortType == SortType.DATE_ASC,
                             onClick = {
                                 viewModel.sortBy(SortType.DATE_ASC)
                                 showSortMenu = false
                             }
                         )
-                        Divider()
+                        HorizontalDivider()
                         SortMenuItem(
                             text = "Highest Amount",
-                            isSelected = currentSort == SortType.AMOUNT_DESC,
+                            isSelected = sortType == SortType.AMOUNT_DESC,
                             onClick = {
                                 viewModel.sortBy(SortType.AMOUNT_DESC)
                                 showSortMenu = false
@@ -148,7 +148,7 @@ fun TransactionsListScreen(
                         )
                         SortMenuItem(
                             text = "Lowest Amount",
-                            isSelected = currentSort == SortType.AMOUNT_ASC,
+                            isSelected = sortType == SortType.AMOUNT_ASC,
                             onClick = {
                                 viewModel.sortBy(SortType.AMOUNT_ASC)
                                 showSortMenu = false
@@ -161,43 +161,91 @@ fun TransactionsListScreen(
             Spacer(modifier = Modifier.height(Spacing.md))
 
             // Content
-            when (val state = uiState) {
-                is TransactionsListUiState.Initial,
-                is TransactionsListUiState.Loading -> {
-                    LoadingState(message = "Loading transactions...")
-                }
-
-                is TransactionsListUiState.Success -> {
-                    if (state.filteredTransactions.isEmpty()) {
-                        EmptyState(
-                            icon = Icons.Default.Receipt,
-                            title = "No transactions found",
-                            subtitle = if (searchQuery.isNotEmpty())
-                                "Try a different search term"
-                            else
-                                "Your transactions will appear here"
-                        )
-                    } else {
-                        TransactionListWithStickyHeaders(
-                            transactions = state.filteredTransactions,
-                            onTransactionClick = { onNavigateToDetail(it.id ?: 0) }
-                        )
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.md)
+                ) {
+                    items(
+                        count = transactionsPaged.itemCount,
+                        key = transactionsPaged.itemKey { item ->
+                            when (item) {
+                                is TransactionListItem.TransactionItem -> item.transaction.id ?: item.hashCode()
+                                is TransactionListItem.HeaderItem -> item.date
+                            }
+                        },
+                        contentType = transactionsPaged.itemContentType { "transaction" }
+                    ) { index ->
+                        val item = transactionsPaged[index]
+                        when (item) {
+                            is TransactionListItem.TransactionItem -> {
+                                TransactionCard(
+                                    transaction = item.transaction,
+                                    onClick = { onNavigateToDetail(item.transaction.id ?: 0) },
+                                    modifier = Modifier.padding(vertical = Spacing.xs)
+                                )
+                            }
+                            is TransactionListItem.HeaderItem -> {
+                                DateStickyHeader(dateHeader = item.date)
+                            }
+                            null -> {
+                                // Placeholder if needed
+                            }
+                        }
                     }
-                }
 
-                is TransactionsListUiState.Error -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(Spacing.xl),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = "Error: ${state.message}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = ExpenseRed
-                        )
+                    // Handle loading and error states within LazyColumn
+                    transactionsPaged.apply {
+                        when {
+                            loadState.refresh is LoadState.Loading -> {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillParentMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
+                            }
+                            loadState.append is LoadState.Loading -> {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(Spacing.md),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                    }
+                                }
+                            }
+                            loadState.refresh is LoadState.Error -> {
+                                val e = transactionsPaged.loadState.refresh as LoadState.Error
+                                item {
+                                    ErrorState(
+                                        message = e.error.localizedMessage ?: "Unknown Error",
+                                        onRetry = { retry() }
+                                    )
+                                }
+                            }
+                            loadState.refresh is LoadState.NotLoading && transactionsPaged.itemCount == 0 -> {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillParentMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        EmptyState(
+                                            icon = Icons.Default.Receipt,
+                                            title = "No transactions found",
+                                            subtitle = if (searchQuery.isNotEmpty())
+                                                "Try a different search term"
+                                            else
+                                                "Your transactions will appear here"
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -319,6 +367,8 @@ fun ModernFilterChips(
                     labelColor = MaterialTheme.colorScheme.onSurface
                 ),
                 border = if (isSelected) null else FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = isSelected,
                     borderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                     selectedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                 )
@@ -329,42 +379,7 @@ fun ModernFilterChips(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TransactionListWithStickyHeaders(
-    transactions: List<Transaction>,
-    onTransactionClick: (Transaction) -> Unit
-) {
-    // Group transactions by date
-    val groupedTransactions = remember(transactions) {
-        transactions.groupBy { transaction ->
-            FormatUtils.formatDateHeader(transaction.timestamp)
-        }
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.md)
-    ) {
-        groupedTransactions.forEach { (dateHeader, transactionsForDate) ->
-            stickyHeader(key = dateHeader) {
-                DateStickyHeader(dateHeader = dateHeader)
-            }
-
-            items(
-                items = transactionsForDate,
-                key = { it.id ?: it.hashCode() }
-            ) { transaction ->
-                TransactionCard(
-                    transaction = transaction,
-                    onClick = { onTransactionClick(transaction) },
-                    modifier = Modifier.padding(vertical = Spacing.xs)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DateStickyHeader(dateHeader: String) {
+fun DateStickyHeader(dateHeader: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()

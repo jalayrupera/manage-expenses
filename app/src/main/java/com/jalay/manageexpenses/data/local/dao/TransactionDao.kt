@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.paging.PagingSource
 import com.jalay.manageexpenses.data.local.entity.TransactionEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -26,6 +27,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions ORDER BY timestamp DESC")
     fun getAllTransactions(): Flow<List<TransactionEntity>>
 
+    @Query("SELECT * FROM transactions ORDER BY timestamp DESC")
+    fun getPagedTransactions(): PagingSource<Int, TransactionEntity>
+
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getTransactionById(id: Long): TransactionEntity?
 
@@ -35,8 +39,23 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE category = :category ORDER BY timestamp DESC")
     fun getTransactionsByCategory(category: String): Flow<List<TransactionEntity>>
 
+    @Query("SELECT * FROM transactions WHERE category = :category ORDER BY timestamp DESC")
+    fun getPagedTransactionsByCategory(category: String): PagingSource<Int, TransactionEntity>
+
     @Query("SELECT * FROM transactions WHERE recipientName LIKE '%' || :query || '%' ORDER BY timestamp DESC")
     fun searchTransactions(query: String): Flow<List<TransactionEntity>>
+
+    @Query("SELECT * FROM transactions WHERE transactionType = :type ORDER BY timestamp DESC")
+    fun getPagedTransactionsByType(type: String): PagingSource<Int, TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE category = :category AND transactionType = :type ORDER BY timestamp DESC")
+    fun getPagedTransactionsByCategoryAndType(category: String, type: String): PagingSource<Int, TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE recipientName LIKE '%' || :query || '%' OR notes LIKE '%' || :query || '%' ORDER BY timestamp DESC")
+    fun searchPagedTransactions(query: String): PagingSource<Int, TransactionEntity>
+
+    @Query("SELECT * FROM transactions WHERE (recipientName LIKE '%' || :query || '%' OR notes LIKE '%' || :query || '%') AND transactionType = :type ORDER BY timestamp DESC")
+    fun searchPagedTransactionsByType(query: String, type: String): PagingSource<Int, TransactionEntity>
 
     @Query("SELECT * FROM transactions WHERE recipientName LIKE '%' || :query || '%' OR notes LIKE '%' || :query || '%' ORDER BY timestamp DESC")
     fun searchTransactionsWithNotes(query: String): Flow<List<TransactionEntity>>

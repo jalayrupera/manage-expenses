@@ -6,6 +6,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.jalay.manageexpenses.data.local.dao.BudgetDao
 import com.jalay.manageexpenses.data.local.dao.CategoryMappingDao
+import com.jalay.manageexpenses.data.local.dao.RecurringTransactionDao
 import com.jalay.manageexpenses.data.local.dao.TransactionDao
 import com.jalay.manageexpenses.data.local.database.AppDatabase
 import dagger.Module
@@ -36,6 +37,24 @@ object DatabaseModule {
         }
     }
 
+    // Migration from version 2 to 3 - Adding recurring_transactions table
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS recurring_transactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    category TEXT NOT NULL,
+                    frequency TEXT NOT NULL,
+                    nextDate INTEGER NOT NULL,
+                    notes TEXT,
+                    isActive INTEGER NOT NULL DEFAULT 1
+                )
+            """)
+        }
+    }
+
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -44,7 +63,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "expenses_database"
         )
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             // Keep fallbackToDestructiveMigration for development, remove for production
             .fallbackToDestructiveMigration()
             .build()
@@ -66,5 +85,11 @@ object DatabaseModule {
     @Singleton
     fun provideBudgetDao(database: AppDatabase): BudgetDao {
         return database.budgetDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRecurringTransactionDao(database: AppDatabase): RecurringTransactionDao {
+        return database.recurringTransactionDao()
     }
 }

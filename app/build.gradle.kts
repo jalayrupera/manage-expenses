@@ -70,6 +70,7 @@ dependencies {
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation(libs.room.paging)
     ksp(libs.room.compiler)
 
     implementation(libs.coroutines.android)
@@ -81,6 +82,8 @@ dependencies {
     implementation(libs.mpandroidchart)
     implementation(libs.kotlin.csv.jvm)
     implementation(libs.coil.compose)
+    implementation(libs.paging.runtime)
+    implementation(libs.paging.compose)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

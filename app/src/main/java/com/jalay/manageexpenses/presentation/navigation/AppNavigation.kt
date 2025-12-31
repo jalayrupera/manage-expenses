@@ -12,6 +12,7 @@ import com.jalay.manageexpenses.presentation.ui.categories.CategoriesScreen
 import com.jalay.manageexpenses.presentation.ui.dashboard.DashboardScreen
 import com.jalay.manageexpenses.presentation.ui.detail.TransactionDetailScreen
 import com.jalay.manageexpenses.presentation.ui.export.ExportScreen
+import com.jalay.manageexpenses.presentation.ui.recurring.RecurringTransactionsScreen
 import com.jalay.manageexpenses.presentation.ui.rules.CategoryRulesScreen
 import com.jalay.manageexpenses.presentation.ui.transactions.TransactionsListScreen
 import com.jalay.manageexpenses.presentation.ui.trends.TrendsScreen
@@ -31,6 +32,7 @@ sealed class Screen(val route: String) {
     object Export : Screen("export")
     object Trends : Screen("trends")
     object CategoryRules : Screen("category_rules")
+    object RecurringTransactions : Screen("recurring_transactions")
 }
 
 @Composable
@@ -51,6 +53,7 @@ fun AppNavigation(
                 onNavigateToBudget = { navController.navigate(Screen.Budget.route) },
                 onNavigateToAddTransaction = { navController.navigate(Screen.AddTransaction.route) },
                 onNavigateToTrends = { navController.navigate(Screen.Trends.route) },
+                onNavigateToRecurring = { navController.navigate(Screen.RecurringTransactions.route) },
                 onNavigateToTransactionDetail = { transactionId ->
                     navController.navigate(Screen.TransactionDetail.createRoute(transactionId))
                 }
@@ -115,6 +118,11 @@ fun AppNavigation(
         }
         composable(Screen.CategoryRules.route) {
             CategoryRulesScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.RecurringTransactions.route) {
+            RecurringTransactionsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

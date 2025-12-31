@@ -2,6 +2,7 @@ package com.jalay.manageexpenses.data.parser
 
 import com.jalay.manageexpenses.domain.model.Transaction
 import com.jalay.manageexpenses.domain.model.TransactionType
+import com.jalay.manageexpenses.util.MerchantNormalizer
 import java.util.regex.Pattern
 
 class SmsParser(private val categoryAutoMapper: CategoryAutoMapper) {
@@ -21,11 +22,12 @@ class SmsParser(private val categoryAutoMapper: CategoryAutoMapper) {
         for (pattern in patterns) {
             val result = pattern.parse(smsBody, sender)
             if (result != null) {
-                val category = categoryAutoMapper.categorize(result.recipient, sender)
+                val normalizedRecipient = MerchantNormalizer.normalize(result.recipient)
+                val category = categoryAutoMapper.categorize(normalizedRecipient, sender)
                 return Transaction(
                     id = null,
                     amount = result.amount,
-                    recipientName = result.recipient,
+                    recipientName = normalizedRecipient,
                     transactionType = result.type,
                     category = category,
                     notes = null,

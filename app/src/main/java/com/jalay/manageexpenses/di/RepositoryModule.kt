@@ -2,8 +2,10 @@ package com.jalay.manageexpenses.di
 
 import com.jalay.manageexpenses.data.local.dao.BudgetDao
 import com.jalay.manageexpenses.data.local.dao.CategoryMappingDao
+import com.jalay.manageexpenses.data.local.dao.RecurringTransactionDao
 import com.jalay.manageexpenses.data.local.dao.TransactionDao
 import com.jalay.manageexpenses.data.repository.BudgetRepository
+import com.jalay.manageexpenses.data.repository.RecurringTransactionRepository
 import com.jalay.manageexpenses.data.repository.TransactionRepository
 import dagger.Module
 import dagger.Provides
@@ -31,5 +33,13 @@ object RepositoryModule {
         transactionDao: TransactionDao
     ): BudgetRepository {
         return BudgetRepository(budgetDao, transactionDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideRecurringTransactionRepository(
+        recurringTransactionDao: RecurringTransactionDao
+    ): RecurringTransactionRepository {
+        return RecurringTransactionRepository(recurringTransactionDao)
     }
 }

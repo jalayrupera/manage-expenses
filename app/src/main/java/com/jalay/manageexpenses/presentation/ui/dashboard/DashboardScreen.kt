@@ -9,10 +9,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.TrendingUp
-import com.jalay.manageexpenses.domain.usecase.GetStatisticsUseCase
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.jalay.manageexpenses.domain.usecase.GetStatisticsUseCase
 import com.jalay.manageexpenses.presentation.ui.components.*
 import com.jalay.manageexpenses.presentation.ui.theme.*
 import com.jalay.manageexpenses.presentation.viewmodel.DashboardViewModel
@@ -35,6 +38,7 @@ fun DashboardScreen(
     onNavigateToBudget: () -> Unit,
     onNavigateToAddTransaction: () -> Unit,
     onNavigateToTrends: () -> Unit,
+    onNavigateToRecurring: () -> Unit,
     onNavigateToTransactionDetail: (Long) -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
@@ -70,6 +74,13 @@ fun DashboardScreen(
                         Icon(
                             Icons.Outlined.TrendingUp,
                             contentDescription = "Trends",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(onClick = onNavigateToRecurring) {
+                        Icon(
+                            Icons.Outlined.Repeat,
+                            contentDescription = "Recurring",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -113,7 +124,7 @@ fun DashboardScreen(
             is DashboardUiState.InitialSetup -> {
                 InitialSetupScreen(
                     modifier = Modifier.padding(paddingValues),
-                    onStartImport = { viewModel.performInitialImport(30) }
+                    onStartImport = { viewModel.performInitialImport(null) }
                 )
             }
 
@@ -127,12 +138,25 @@ fun DashboardScreen(
             }
 
             is DashboardUiState.Success -> {
-                DashboardContent(
-                    modifier = Modifier.padding(paddingValues),
-                    statistics = state.statistics,
-                    onNavigateToTransactions = onNavigateToTransactions,
-                    onNavigateToTransactionDetail = onNavigateToTransactionDetail
-                )
+                var isRefreshing by remember { mutableStateOf(false) }
+                val pullToRefreshState = rememberPullToRefreshState()
+
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    state = pullToRefreshState,
+                    onRefresh = {
+                        isRefreshing = true
+                        viewModel.loadStatistics()
+                        isRefreshing = false
+                    },
+                    modifier = Modifier.padding(paddingValues)
+                ) {
+                    DashboardContent(
+                        statistics = state.statistics,
+                        onNavigateToTransactions = onNavigateToTransactions,
+                        onNavigateToTransactionDetail = onNavigateToTransactionDetail
+                    )
+                }
             }
 
             is DashboardUiState.Error -> {
@@ -204,7 +228,7 @@ private fun InitialSetupScreen(
         Spacer(modifier = Modifier.height(Spacing.xxl))
 
         PrimaryButton(
-            text = "Import Last 30 Days",
+            text = "Import All History",
             onClick = onStartImport,
             modifier = Modifier.fillMaxWidth()
         )
@@ -245,7 +269,7 @@ private fun ImportingScreen(
         if (total > 0) {
             // Progress bar
             LinearProgressIndicator(
-                progress = processed.toFloat() / total.toFloat(),
+                progress = { processed.toFloat() / total.toFloat() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
@@ -274,7 +298,7 @@ private fun ImportingScreen(
 @Composable
 private fun DashboardContent(
     modifier: Modifier = Modifier,
-    statistics: com.jalay.manageexpenses.domain.usecase.GetStatisticsUseCase.Statistics,
+    statistics: GetStatisticsUseCase.Statistics,
     onNavigateToTransactions: () -> Unit,
     onNavigateToTransactionDetail: (Long) -> Unit
 ) {
@@ -439,53 +463,6 @@ private fun BalanceOverviewCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ErrorState(
-    modifier: Modifier = Modifier,
-    message: String,
-    onRetry: () -> Unit
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(Spacing.xl),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        IconBadge(
-            icon = Icons.Default.ErrorOutline,
-            size = 64.dp,
-            backgroundColor = ExpenseRed.copy(alpha = 0.1f),
-            iconColor = ExpenseRed
-        )
-
-        Spacer(modifier = Modifier.height(Spacing.lg))
-
-        Text(
-            text = "Something went wrong",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        Spacer(modifier = Modifier.height(Spacing.xs))
-
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(Spacing.xl))
-
-        SecondaryButton(
-            text = "Try Again",
-            onClick = onRetry
-        )
     }
 }
 

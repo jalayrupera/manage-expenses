@@ -44,7 +44,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun performInitialImport(days: Int = 30) {
+    fun performInitialImport(days: Int? = null) {
         viewModelScope.launch {
             try {
                 _uiState.value = DashboardUiState.Importing(0, 0, isInitial = true)

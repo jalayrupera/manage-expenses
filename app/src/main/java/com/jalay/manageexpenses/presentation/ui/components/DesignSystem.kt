@@ -16,8 +16,11 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ErrorOutline
 import com.jalay.manageexpenses.presentation.ui.theme.*
 
 // === SPACING CONSTANTS ===
@@ -311,6 +314,53 @@ fun SecondaryButton(
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge
+        )
+    }
+}
+
+@Composable
+fun ErrorState(
+    modifier: Modifier = Modifier,
+    message: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(Spacing.xl),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        IconBadge(
+            icon = Icons.Default.ErrorOutline,
+            size = 64.dp,
+            backgroundColor = ExpenseRed.copy(alpha = 0.1f),
+            iconColor = ExpenseRed
+        )
+
+        Spacer(modifier = Modifier.height(Spacing.lg))
+
+        Text(
+            text = "Something went wrong",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.height(Spacing.xs))
+
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(Spacing.xl))
+
+        SecondaryButton(
+            text = "Try Again",
+            onClick = onRetry
         )
     }
 }

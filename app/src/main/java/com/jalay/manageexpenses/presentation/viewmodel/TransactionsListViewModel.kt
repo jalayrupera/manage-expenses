@@ -7,6 +7,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.insertSeparators
 import androidx.paging.map
+import com.jalay.manageexpenses.domain.model.SortType
 import com.jalay.manageexpenses.domain.model.Transaction
 import com.jalay.manageexpenses.domain.model.TransactionType
 import com.jalay.manageexpenses.domain.usecase.GetTransactionsUseCase
@@ -36,10 +37,11 @@ class TransactionsListViewModel @Inject constructor(
 
     val transactionsPaged: Flow<PagingData<TransactionListItem>> = combine(
         _searchQuery,
-        _filterType
-    ) { query, filter ->
-        Pair(query, filter)
-    }.flatMapLatest { (query, filter) ->
+        _filterType,
+        _sortType
+    ) { query, filter, sort ->
+        Triple(query, filter, sort)
+    }.flatMapLatest { (query, filter, sort) ->
         val type = when (filter) {
             FilterType.ALL -> null
             FilterType.SENT -> TransactionType.SENT
@@ -48,29 +50,42 @@ class TransactionsListViewModel @Inject constructor(
 
         val flow = if (query.isBlank()) {
             if (filterCategory != null) {
-                getTransactionsUseCase.pagedByCategory(filterCategory, type)
+                getTransactionsUseCase.pagedByCategory(filterCategory, type, sort)
             } else {
-                getTransactionsUseCase.paged(type)
+                getTransactionsUseCase.paged(type, sort)
             }
         } else {
-            searchTransactionsUseCase.paged(query, type)
+            searchTransactionsUseCase.paged(query, type, sort)
         }
-        
+
+        // Only insert date headers for date-based sorting
+        val shouldInsertDateHeaders = sort == SortType.DATE_DESC || sort == SortType.DATE_ASC
+
         flow.map { pagingData ->
-            pagingData.map { TransactionListItem.TransactionItem(it) }
-                .insertSeparators { before, after ->
-                    if (after == null) return@insertSeparators null
-                    
-                    val afterDate = FormatUtils.formatDateHeader(after.transaction.timestamp)
-                    if (before == null) {
-                        return@insertSeparators TransactionListItem.HeaderItem(afterDate)
-                    }
-                    
-                    val beforeDate = FormatUtils.formatDateHeader(before.transaction.timestamp)
-                    if (beforeDate != afterDate) {
-                        TransactionListItem.HeaderItem(afterDate)
+            pagingData.map<Transaction, TransactionListItem> { TransactionListItem.TransactionItem(it) }
+                .let { mappedData ->
+                    if (shouldInsertDateHeaders) {
+                        mappedData.insertSeparators { before, after ->
+                            if (after == null) return@insertSeparators null
+
+                            val afterItem = after as? TransactionListItem.TransactionItem ?: return@insertSeparators null
+                            val afterDate = FormatUtils.formatDateHeader(afterItem.transaction.timestamp)
+
+                            if (before == null) {
+                                return@insertSeparators TransactionListItem.HeaderItem(afterDate)
+                            }
+
+                            val beforeItem = before as? TransactionListItem.TransactionItem ?: return@insertSeparators null
+                            val beforeDate = FormatUtils.formatDateHeader(beforeItem.transaction.timestamp)
+
+                            if (beforeDate != afterDate) {
+                                TransactionListItem.HeaderItem(afterDate)
+                            } else {
+                                null
+                            }
+                        }
                     } else {
-                        null
+                        mappedData
                     }
                 }
         }
@@ -96,11 +111,4 @@ sealed class TransactionListItem {
 
 enum class FilterType {
     ALL, SENT, RECEIVED
-}
-
-enum class SortType {
-    DATE_DESC,
-    DATE_ASC,
-    AMOUNT_DESC,
-    AMOUNT_ASC
 }

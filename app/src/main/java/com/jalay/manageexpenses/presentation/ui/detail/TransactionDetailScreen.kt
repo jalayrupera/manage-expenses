@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,6 +20,8 @@ import com.jalay.manageexpenses.domain.model.Transaction
 import com.jalay.manageexpenses.domain.model.TransactionType
 import com.jalay.manageexpenses.presentation.ui.components.*
 import com.jalay.manageexpenses.presentation.ui.theme.*
+import com.jalay.manageexpenses.presentation.viewmodel.DeleteEvent
+import com.jalay.manageexpenses.presentation.viewmodel.RulePromptEvent
 import com.jalay.manageexpenses.presentation.viewmodel.TransactionDetailUiState
 import com.jalay.manageexpenses.presentation.viewmodel.TransactionDetailViewModel
 import com.jalay.manageexpenses.util.FormatUtils
@@ -28,16 +31,61 @@ import com.jalay.manageexpenses.util.FormatUtils
 fun TransactionDetailScreen(
     transactionId: Long,
     onNavigateBack: () -> Unit,
+    onDeleted: () -> Unit = onNavigateBack,
     viewModel: TransactionDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val deleteEvent by viewModel.deleteEvent.collectAsState()
+    val rulePromptEvent by viewModel.rulePromptEvent.collectAsState()
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(transactionId) {
         viewModel.loadTransaction(transactionId)
     }
 
+    // Handle delete events
+    LaunchedEffect(deleteEvent) {
+        when (val event = deleteEvent) {
+            is DeleteEvent.Deleted -> {
+                val result = snackbarHostState.showSnackbar(
+                    message = "Transaction deleted",
+                    actionLabel = "Undo",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.restoreTransaction()
+                } else {
+                    viewModel.clearDeleteEvent()
+                    onDeleted()
+                }
+            }
+            is DeleteEvent.Restored -> {
+                viewModel.clearDeleteEvent()
+                viewModel.loadTransaction(transactionId)
+            }
+            null -> { /* No event */ }
+        }
+    }
+
+    // Handle rule prompt events
+    LaunchedEffect(rulePromptEvent) {
+        val event = rulePromptEvent ?: return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = "Save as rule for \"${event.keyword}\"?",
+            actionLabel = "Save Rule",
+            duration = SnackbarDuration.Long
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.saveCategoryRule()
+        } else {
+            viewModel.dismissRulePrompt()
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -56,6 +104,15 @@ fun TransactionDetailScreen(
                         )
                     }
                 },
+                actions = {
+                    IconButton(onClick = { showDeleteConfirmation = true }) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = ExpenseRed
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
@@ -63,6 +120,30 @@ fun TransactionDetailScreen(
             )
         }
     ) { paddingValues ->
+        // Delete confirmation dialog
+        if (showDeleteConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmation = false },
+                title = { Text("Delete Transaction") },
+                text = { Text("Are you sure you want to delete this transaction? You can undo this action.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDeleteConfirmation = false
+                            viewModel.deleteTransaction()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed)
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirmation = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
         when (val state = uiState) {
             is TransactionDetailUiState.Loading -> {
                 LoadingState(

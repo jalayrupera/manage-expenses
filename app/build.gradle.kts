@@ -77,7 +77,11 @@ dependencies {
 
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.work)
     ksp(libs.hilt.compiler)
+    ksp(libs.hilt.work.compiler)
+
+    implementation(libs.work.runtime.ktx)
 
     implementation(libs.mpandroidchart)
     implementation(libs.kotlin.csv.jvm)

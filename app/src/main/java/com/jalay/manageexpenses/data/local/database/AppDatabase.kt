@@ -18,7 +18,7 @@ import com.jalay.manageexpenses.data.local.entity.TransactionEntity
         BudgetEntity::class,
         RecurringTransactionEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

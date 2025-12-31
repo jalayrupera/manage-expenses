@@ -29,7 +29,9 @@ import com.jalay.manageexpenses.presentation.viewmodel.ExportUiState
 import com.jalay.manageexpenses.presentation.viewmodel.ExportViewModel
 import java.io.File
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +40,7 @@ fun ExportScreen(
     viewModel: ExportViewModel = hiltViewModel()
 ) {
     var selectedFormat by remember { mutableStateOf(ExportDataUseCase.ExportFormat.CSV) }
-    var selectedDateRange by remember { mutableStateOf(DateRangeOption.AllTime) }
+    var selectedDateRange by remember { mutableStateOf(DateRangeOption.ThisMonth) }
     var startDate by remember { mutableStateOf<Date?>(null) }
     var endDate by remember { mutableStateOf<Date?>(null) }
     var showStartDatePicker by remember { mutableStateOf(false) }
@@ -118,16 +120,43 @@ fun ExportScreen(
                     )
                     Spacer(modifier = Modifier.height(Spacing.md))
 
+                    // First row: This Month, Last 30 Days, Last Month
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                     ) {
-                        DateRangeOption.values().forEach { range ->
+                        listOf(DateRangeOption.ThisMonth, DateRangeOption.Last30Days, DateRangeOption.LastMonth).forEach { range ->
                             FilterChip(
                                 selected = selectedDateRange == range,
                                 onClick = {
                                     selectedDateRange = range
-                                    if (range == DateRangeOption.AllTime) {
+                                    startDate = null
+                                    endDate = null
+                                },
+                                label = {
+                                    Text(
+                                        text = range.label,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(Spacing.sm))
+
+                    // Second row: This Year, All Time, Custom
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                    ) {
+                        listOf(DateRangeOption.ThisYear, DateRangeOption.AllTime, DateRangeOption.Custom).forEach { range ->
+                            FilterChip(
+                                selected = selectedDateRange == range,
+                                onClick = {
+                                    selectedDateRange = range
+                                    if (range != DateRangeOption.Custom) {
                                         startDate = null
                                         endDate = null
                                     }
@@ -135,7 +164,7 @@ fun ExportScreen(
                                 label = {
                                     Text(
                                         text = range.label,
-                                        style = MaterialTheme.typography.labelMedium
+                                        style = MaterialTheme.typography.labelSmall
                                     )
                                 },
                                 modifier = Modifier.weight(1f)
@@ -193,8 +222,11 @@ fun ExportScreen(
             PrimaryButton(
                 text = "Export Transactions",
                 onClick = {
-                    val startTime = startDate?.time
-                    val endTime = endDate?.time
+                    val (startTime, endTime) = if (selectedDateRange == DateRangeOption.Custom) {
+                        Pair(startDate?.time, endDate?.time)
+                    } else {
+                        selectedDateRange.getDateRange()
+                    }
                     viewModel.export(selectedFormat, startTime, endTime)
                 },
                 enabled = uiState !is ExportUiState.Exporting && isValidDateRange(startDate, endDate, selectedDateRange),
@@ -384,8 +416,55 @@ private fun shareFile(context: Context, filePath: String) {
 }
 
 enum class DateRangeOption(val label: String) {
+    ThisMonth("This Month"),
+    Last30Days("Last 30 Days"),
+    LastMonth("Last Month"),
+    ThisYear("This Year"),
     AllTime("All Time"),
-    Custom("Custom")
+    Custom("Custom");
+
+    fun getDateRange(): Pair<Long?, Long?> {
+        val calendar = Calendar.getInstance()
+        val now = System.currentTimeMillis()
+
+        return when (this) {
+            ThisMonth -> {
+                calendar.set(Calendar.DAY_OF_MONTH, 1)
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                Pair(calendar.timeInMillis, now)
+            }
+            Last30Days -> {
+                calendar.add(Calendar.DAY_OF_YEAR, -30)
+                Pair(calendar.timeInMillis, now)
+            }
+            LastMonth -> {
+                calendar.add(Calendar.MONTH, -1)
+                calendar.set(Calendar.DAY_OF_MONTH, 1)
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                val start = calendar.timeInMillis
+                calendar.add(Calendar.MONTH, 1)
+                val end = calendar.timeInMillis - 1
+                Pair(start, end)
+            }
+            ThisYear -> {
+                calendar.set(Calendar.MONTH, Calendar.JANUARY)
+                calendar.set(Calendar.DAY_OF_MONTH, 1)
+                calendar.set(Calendar.HOUR_OF_DAY, 0)
+                calendar.set(Calendar.MINUTE, 0)
+                calendar.set(Calendar.SECOND, 0)
+                calendar.set(Calendar.MILLISECOND, 0)
+                Pair(calendar.timeInMillis, now)
+            }
+            AllTime -> Pair(null, null)
+            Custom -> Pair(null, null) // Handled separately
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

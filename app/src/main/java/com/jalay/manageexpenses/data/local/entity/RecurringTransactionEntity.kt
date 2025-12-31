@@ -2,6 +2,8 @@ package com.jalay.manageexpenses.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.jalay.manageexpenses.domain.model.RecurringFrequency
+import com.jalay.manageexpenses.domain.model.RecurringTransaction
 
 @Entity(tableName = "recurring_transactions")
 data class RecurringTransactionEntity(
@@ -14,4 +16,15 @@ data class RecurringTransactionEntity(
     val nextDate: Long,
     val notes: String? = null,
     val isActive: Boolean = true
-)
+) {
+    fun toDomainModel(): RecurringTransaction = RecurringTransaction(
+        id = id,
+        name = name,
+        amount = amount,
+        category = category,
+        frequency = RecurringFrequency.valueOf(frequency),
+        nextDate = nextDate,
+        notes = notes,
+        isActive = isActive
+    )
+}

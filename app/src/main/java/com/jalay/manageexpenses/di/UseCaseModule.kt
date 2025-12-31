@@ -3,13 +3,16 @@ package com.jalay.manageexpenses.di
 import android.content.ContentResolver
 import android.content.Context
 import com.jalay.manageexpenses.data.parser.SmsParser
+import com.jalay.manageexpenses.data.repository.BudgetRepository
 import com.jalay.manageexpenses.data.repository.TransactionRepository
 import com.jalay.manageexpenses.domain.usecase.AddTransactionUseCase
+import com.jalay.manageexpenses.domain.usecase.DeleteTransactionUseCase
 import com.jalay.manageexpenses.domain.usecase.ExportDataUseCase
 import com.jalay.manageexpenses.domain.usecase.GetStatisticsUseCase
 import com.jalay.manageexpenses.domain.usecase.GetTransactionsUseCase
 import com.jalay.manageexpenses.domain.usecase.ImportHistoricalSmsUseCase
 import com.jalay.manageexpenses.domain.usecase.ParseSmsUseCase
+import com.jalay.manageexpenses.domain.usecase.SaveCategoryRuleUseCase
 import com.jalay.manageexpenses.domain.usecase.SearchTransactionsUseCase
 import com.jalay.manageexpenses.domain.usecase.UpdateCategoryUseCase
 import com.jalay.manageexpenses.domain.usecase.UpdateTransactionNotesUseCase
@@ -54,8 +57,11 @@ object UseCaseModule {
     }
 
     @Provides
-    fun provideGetStatisticsUseCase(repository: TransactionRepository): GetStatisticsUseCase {
-        return GetStatisticsUseCase(repository)
+    fun provideGetStatisticsUseCase(
+        repository: TransactionRepository,
+        budgetRepository: BudgetRepository
+    ): GetStatisticsUseCase {
+        return GetStatisticsUseCase(repository, budgetRepository)
     }
 
     @Provides
@@ -79,5 +85,15 @@ object UseCaseModule {
     @Provides
     fun provideAddTransactionUseCase(repository: TransactionRepository): AddTransactionUseCase {
         return AddTransactionUseCase(repository)
+    }
+
+    @Provides
+    fun provideDeleteTransactionUseCase(repository: TransactionRepository): DeleteTransactionUseCase {
+        return DeleteTransactionUseCase(repository)
+    }
+
+    @Provides
+    fun provideSaveCategoryRuleUseCase(repository: TransactionRepository): SaveCategoryRuleUseCase {
+        return SaveCategoryRuleUseCase(repository)
     }
 }

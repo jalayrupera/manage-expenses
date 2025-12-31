@@ -1,6 +1,8 @@
 package com.jalay.manageexpenses.domain.usecase
 
+import com.jalay.manageexpenses.data.repository.BudgetRepository
 import com.jalay.manageexpenses.data.repository.TransactionRepository
+import com.jalay.manageexpenses.domain.model.BudgetWithSpending
 import com.jalay.manageexpenses.domain.model.CategorySummary
 import com.jalay.manageexpenses.domain.model.MonthlySummary
 import com.jalay.manageexpenses.domain.model.Transaction
@@ -9,7 +11,8 @@ import kotlinx.coroutines.flow.first
 import java.util.Calendar
 
 class GetStatisticsUseCase(
-    private val repository: TransactionRepository
+    private val repository: TransactionRepository,
+    private val budgetRepository: BudgetRepository? = null
 ) {
     suspend operator fun invoke(): Statistics {
         val transactions = repository.getAllTransactions().first()
@@ -53,6 +56,17 @@ class GetStatisticsUseCase(
         // Calculate insights for current month
         val insights = calculateInsights(transactions)
 
+        // Get budget alerts (budgets that are near limit or over budget)
+        val budgetAlerts = budgetRepository?.let { repo ->
+            try {
+                repo.getBudgetsWithSpending()
+                    .filter { it.isNearLimit || it.isOverBudget }
+                    .sortedByDescending { it.percentageUsed }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } ?: emptyList()
+
         return Statistics(
             totalSent = totalSent,
             totalReceived = totalReceived,
@@ -60,7 +74,8 @@ class GetStatisticsUseCase(
             categorySummaries = categorySummaries,
             monthlySummaries = monthlySummaries,
             recentTransactions = recentTransactions,
-            insights = insights
+            insights = insights,
+            budgetAlerts = budgetAlerts
         )
     }
 
@@ -111,11 +126,14 @@ class GetStatisticsUseCase(
         return transactions
             .groupBy {
                 calendar.timeInMillis = it.timestamp
-                "${calendar.get(Calendar.YEAR)}-${calendar.get(Calendar.MONTH) + 1}"
+                // Use numeric key for proper chronological sorting: YYYYMM format
+                calendar.get(Calendar.YEAR) * 100 + (calendar.get(Calendar.MONTH) + 1)
             }
-            .map { (month, trans) ->
-                val parts = month.split("-")
-                val monthLabel = getMonthName(parts[1].toInt()) + " ${parts[0]}"
+            .toSortedMap() // Sort by numeric year-month key (e.g., 202401, 202402)
+            .map { (yearMonth, trans) ->
+                val year = yearMonth / 100
+                val month = yearMonth % 100
+                val monthLabel = "${getMonthName(month)} $year"
 
                 MonthlySummary(
                     month = monthLabel,
@@ -124,7 +142,6 @@ class GetStatisticsUseCase(
                     transactionCount = trans.size
                 )
             }
-            .sortedBy { it.month }
             .takeLast(6)
     }
 
@@ -154,7 +171,8 @@ class GetStatisticsUseCase(
         val categorySummaries: List<CategorySummary>,
         val monthlySummaries: List<MonthlySummary>,
         val recentTransactions: List<Transaction>,
-        val insights: Insights = Insights()
+        val insights: Insights = Insights(),
+        val budgetAlerts: List<BudgetWithSpending> = emptyList()
     )
 
     data class Insights(

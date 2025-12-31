@@ -5,6 +5,7 @@ import com.jalay.manageexpenses.data.local.dao.CategoryMappingDao
 import com.jalay.manageexpenses.data.local.entity.CategoryMappingEntity
 import com.jalay.manageexpenses.data.local.entity.TransactionEntity
 import com.jalay.manageexpenses.domain.model.CategoryMapping
+import com.jalay.manageexpenses.domain.model.SortType
 import com.jalay.manageexpenses.domain.model.Transaction
 import com.jalay.manageexpenses.domain.model.TransactionType
 import androidx.paging.Pager
@@ -25,45 +26,95 @@ class TransactionRepository(
         }
     }
 
-    fun getPagedTransactions(pageSize: Int = 50, type: TransactionType? = null): Flow<PagingData<Transaction>> {
+    fun getPagedTransactions(
+        pageSize: Int = 50,
+        type: TransactionType? = null,
+        sortType: SortType = SortType.DATE_DESC
+    ): Flow<PagingData<Transaction>> {
         return Pager(
             config = PagingConfig(
                 pageSize = pageSize,
                 enablePlaceholders = false
             ),
-            pagingSourceFactory = { 
-                if (type == null) transactionDao.getPagedTransactions()
-                else transactionDao.getPagedTransactionsByType(type.name)
+            pagingSourceFactory = {
+                when {
+                    type == null -> when (sortType) {
+                        SortType.DATE_DESC -> transactionDao.getPagedTransactions()
+                        SortType.DATE_ASC -> transactionDao.getPagedTransactionsByDateAsc()
+                        SortType.AMOUNT_DESC -> transactionDao.getPagedTransactionsByAmountDesc()
+                        SortType.AMOUNT_ASC -> transactionDao.getPagedTransactionsByAmountAsc()
+                    }
+                    else -> when (sortType) {
+                        SortType.DATE_DESC -> transactionDao.getPagedTransactionsByType(type.name)
+                        SortType.DATE_ASC -> transactionDao.getPagedTransactionsByTypeDateAsc(type.name)
+                        SortType.AMOUNT_DESC -> transactionDao.getPagedTransactionsByTypeAmountDesc(type.name)
+                        SortType.AMOUNT_ASC -> transactionDao.getPagedTransactionsByTypeAmountAsc(type.name)
+                    }
+                }
             }
         ).flow.map { pagingData ->
             pagingData.map { it.toDomainModel() }
         }
     }
 
-    fun getPagedTransactionsByCategory(category: String, pageSize: Int = 50, type: TransactionType? = null): Flow<PagingData<Transaction>> {
+    fun getPagedTransactionsByCategory(
+        category: String,
+        pageSize: Int = 50,
+        type: TransactionType? = null,
+        sortType: SortType = SortType.DATE_DESC
+    ): Flow<PagingData<Transaction>> {
         return Pager(
             config = PagingConfig(
                 pageSize = pageSize,
                 enablePlaceholders = false
             ),
-            pagingSourceFactory = { 
-                if (type == null) transactionDao.getPagedTransactionsByCategory(category)
-                else transactionDao.getPagedTransactionsByCategoryAndType(category, type.name)
+            pagingSourceFactory = {
+                when {
+                    type == null -> when (sortType) {
+                        SortType.DATE_DESC -> transactionDao.getPagedTransactionsByCategory(category)
+                        SortType.DATE_ASC -> transactionDao.getPagedTransactionsByCategoryDateAsc(category)
+                        SortType.AMOUNT_DESC -> transactionDao.getPagedTransactionsByCategoryAmountDesc(category)
+                        SortType.AMOUNT_ASC -> transactionDao.getPagedTransactionsByCategoryAmountAsc(category)
+                    }
+                    else -> when (sortType) {
+                        SortType.DATE_DESC -> transactionDao.getPagedTransactionsByCategoryAndType(category, type.name)
+                        SortType.DATE_ASC -> transactionDao.getPagedTransactionsByCategoryAndTypeDateAsc(category, type.name)
+                        SortType.AMOUNT_DESC -> transactionDao.getPagedTransactionsByCategoryAndTypeAmountDesc(category, type.name)
+                        SortType.AMOUNT_ASC -> transactionDao.getPagedTransactionsByCategoryAndTypeAmountAsc(category, type.name)
+                    }
+                }
             }
         ).flow.map { pagingData ->
             pagingData.map { it.toDomainModel() }
         }
     }
 
-    fun searchPagedTransactions(query: String, pageSize: Int = 50, type: TransactionType? = null): Flow<PagingData<Transaction>> {
+    fun searchPagedTransactions(
+        query: String,
+        pageSize: Int = 50,
+        type: TransactionType? = null,
+        sortType: SortType = SortType.DATE_DESC
+    ): Flow<PagingData<Transaction>> {
         return Pager(
             config = PagingConfig(
                 pageSize = pageSize,
                 enablePlaceholders = false
             ),
-            pagingSourceFactory = { 
-                if (type == null) transactionDao.searchPagedTransactions(query)
-                else transactionDao.searchPagedTransactionsByType(query, type.name)
+            pagingSourceFactory = {
+                when {
+                    type == null -> when (sortType) {
+                        SortType.DATE_DESC -> transactionDao.searchPagedTransactions(query)
+                        SortType.DATE_ASC -> transactionDao.searchPagedTransactionsDateAsc(query)
+                        SortType.AMOUNT_DESC -> transactionDao.searchPagedTransactionsAmountDesc(query)
+                        SortType.AMOUNT_ASC -> transactionDao.searchPagedTransactionsAmountAsc(query)
+                    }
+                    else -> when (sortType) {
+                        SortType.DATE_DESC -> transactionDao.searchPagedTransactionsByType(query, type.name)
+                        SortType.DATE_ASC -> transactionDao.searchPagedTransactionsByTypeDateAsc(query, type.name)
+                        SortType.AMOUNT_DESC -> transactionDao.searchPagedTransactionsByTypeAmountDesc(query, type.name)
+                        SortType.AMOUNT_ASC -> transactionDao.searchPagedTransactionsByTypeAmountAsc(query, type.name)
+                    }
+                }
             }
         ).flow.map { pagingData ->
             pagingData.map { it.toDomainModel() }
@@ -156,6 +207,10 @@ class TransactionRepository(
 
     suspend fun getAllCategories(): List<String> {
         return categoryMappingDao.getAllCategories()
+    }
+
+    suspend fun getMappingByKeyword(keyword: String): CategoryMapping? {
+        return categoryMappingDao.getMappingByKeyword(keyword)?.toDomainModel()
     }
 
     fun getTransactionsForMonth(year: Int, month: Int): Flow<List<Transaction>> {

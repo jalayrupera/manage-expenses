@@ -55,6 +55,20 @@ object DatabaseModule {
         }
     }
 
+    // Migration from version 3 to 4 - Adding indices for performance
+    private val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            // Add indices to transactions table
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_timestamp ON transactions(timestamp)")
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_category ON transactions(category)")
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_transactionType ON transactions(transactionType)")
+            database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_transactions_transactionRef ON transactions(transactionRef)")
+
+            // Add unique index to category_mappings table
+            database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_category_mappings_keyword ON category_mappings(keyword)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -63,9 +77,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "expenses_database"
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
-            // Keep fallbackToDestructiveMigration for development, remove for production
-            .fallbackToDestructiveMigration()
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
     }
 

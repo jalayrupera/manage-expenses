@@ -4,7 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jalay.manageexpenses.domain.model.Transaction
+import com.jalay.manageexpenses.domain.usecase.DeleteTransactionUseCase
 import com.jalay.manageexpenses.domain.usecase.GetTransactionsUseCase
+import com.jalay.manageexpenses.domain.usecase.SaveCategoryRuleUseCase
 import com.jalay.manageexpenses.domain.usecase.UpdateCategoryUseCase
 import com.jalay.manageexpenses.domain.usecase.UpdateTransactionNotesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +22,8 @@ class TransactionDetailViewModel @Inject constructor(
     private val getTransactionsUseCase: GetTransactionsUseCase,
     private val updateTransactionNotesUseCase: UpdateTransactionNotesUseCase,
     private val updateCategoryUseCase: UpdateCategoryUseCase,
+    private val deleteTransactionUseCase: DeleteTransactionUseCase,
+    private val saveCategoryRuleUseCase: SaveCategoryRuleUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -27,6 +31,12 @@ class TransactionDetailViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<TransactionDetailUiState>(TransactionDetailUiState.Loading)
     val uiState: StateFlow<TransactionDetailUiState> = _uiState.asStateFlow()
+
+    private val _deleteEvent = MutableStateFlow<DeleteEvent?>(null)
+    val deleteEvent: StateFlow<DeleteEvent?> = _deleteEvent.asStateFlow()
+
+    private val _rulePromptEvent = MutableStateFlow<RulePromptEvent?>(null)
+    val rulePromptEvent: StateFlow<RulePromptEvent?> = _rulePromptEvent.asStateFlow()
 
     private val availableCategories = listOf(
         "Shopping", "Food & Dining", "Transport", "Utilities",
@@ -71,10 +81,58 @@ class TransactionDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val state = _uiState.value
             if (state is TransactionDetailUiState.Success && state.transaction != null) {
-                updateCategoryUseCase(state.transaction.id!!, category)
-                loadTransaction(state.transaction.id!!)
+                val transaction = state.transaction
+                updateCategoryUseCase(transaction.id!!, category)
+                loadTransaction(transaction.id!!)
+
+                // Check if we should prompt to save a rule
+                val keyword = saveCategoryRuleUseCase.extractKeyword(transaction.recipientName)
+                if (keyword.isNotEmpty() && !saveCategoryRuleUseCase.ruleExists(keyword)) {
+                    _rulePromptEvent.value = RulePromptEvent(
+                        keyword = keyword,
+                        recipientName = transaction.recipientName,
+                        category = category
+                    )
+                }
             }
         }
+    }
+
+    fun saveCategoryRule() {
+        viewModelScope.launch {
+            val event = _rulePromptEvent.value ?: return@launch
+            saveCategoryRuleUseCase.save(event.keyword, event.category)
+            _rulePromptEvent.value = null
+        }
+    }
+
+    fun dismissRulePrompt() {
+        _rulePromptEvent.value = null
+    }
+
+    fun deleteTransaction() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            if (state is TransactionDetailUiState.Success && state.transaction != null) {
+                val transaction = state.transaction
+                deleteTransactionUseCase(transaction)
+                _deleteEvent.value = DeleteEvent.Deleted(transaction)
+            }
+        }
+    }
+
+    fun restoreTransaction() {
+        viewModelScope.launch {
+            val event = _deleteEvent.value
+            if (event is DeleteEvent.Deleted) {
+                deleteTransactionUseCase.restore(event.transaction)
+                _deleteEvent.value = DeleteEvent.Restored
+            }
+        }
+    }
+
+    fun clearDeleteEvent() {
+        _deleteEvent.value = null
     }
 }
 
@@ -86,3 +144,14 @@ sealed class TransactionDetailUiState {
     ) : TransactionDetailUiState()
     data class Error(val message: String) : TransactionDetailUiState()
 }
+
+sealed class DeleteEvent {
+    data class Deleted(val transaction: Transaction) : DeleteEvent()
+    object Restored : DeleteEvent()
+}
+
+data class RulePromptEvent(
+    val keyword: String,
+    val recipientName: String,
+    val category: String
+)

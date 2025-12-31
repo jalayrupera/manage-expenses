@@ -24,4 +24,10 @@ interface RecurringTransactionDao {
 
     @Query("UPDATE recurring_transactions SET isActive = :isActive WHERE id = :id")
     suspend fun setStatus(id: Long, isActive: Boolean)
+
+    @Query("SELECT * FROM recurring_transactions WHERE isActive = 1 AND nextDate <= :currentTime")
+    suspend fun getDueTransactions(currentTime: Long): List<RecurringTransactionEntity>
+
+    @Query("UPDATE recurring_transactions SET nextDate = :nextDate WHERE id = :id")
+    suspend fun updateNextDate(id: Long, nextDate: Long)
 }

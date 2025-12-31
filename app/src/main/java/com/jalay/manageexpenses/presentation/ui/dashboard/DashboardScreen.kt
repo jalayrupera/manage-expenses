@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.jalay.manageexpenses.domain.model.BudgetWithSpending
 import com.jalay.manageexpenses.domain.usecase.GetStatisticsUseCase
 import com.jalay.manageexpenses.presentation.ui.components.*
 import com.jalay.manageexpenses.presentation.ui.theme.*
@@ -43,6 +44,16 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // Track refresh state outside the when block so it persists across state changes
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    // Reset refreshing when we transition to Success or Error
+    LaunchedEffect(uiState) {
+        if (uiState is DashboardUiState.Success || uiState is DashboardUiState.Error) {
+            isRefreshing = false
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -117,7 +128,6 @@ fun DashboardScreen(
             }
 
             is DashboardUiState.Success -> {
-                var isRefreshing by remember { mutableStateOf(false) }
                 val pullToRefreshState = rememberPullToRefreshState()
 
                 PullToRefreshBox(
@@ -126,7 +136,6 @@ fun DashboardScreen(
                     onRefresh = {
                         isRefreshing = true
                         viewModel.loadStatistics()
-                        isRefreshing = false
                     },
                     modifier = Modifier.padding(paddingValues)
                 ) {
@@ -329,6 +338,20 @@ private fun DashboardContent(
 
             item {
                 InsightsGrid(insights = statistics.insights)
+            }
+        }
+
+        // Budget Alerts Section
+        if (statistics.budgetAlerts.isNotEmpty()) {
+            item {
+                SectionHeader(title = "Budget Alerts")
+            }
+
+            items(
+                items = statistics.budgetAlerts,
+                key = { it.budget.id ?: it.hashCode() }
+            ) { budgetWithSpending ->
+                BudgetAlertCard(budgetWithSpending = budgetWithSpending)
             }
         }
 
@@ -563,6 +586,96 @@ private fun InsightCard(
                     text = it,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+private val WarningOrange = androidx.compose.ui.graphics.Color(0xFFF59E0B)
+
+@Composable
+private fun BudgetAlertCard(
+    budgetWithSpending: BudgetWithSpending,
+    modifier: Modifier = Modifier
+) {
+    val budget = budgetWithSpending.budget
+    val isOverBudget = budgetWithSpending.isOverBudget
+    val alertColor = if (isOverBudget) ExpenseRed else WarningOrange
+    val percentageText = "${(budgetWithSpending.percentageUsed * 100).toInt()}%"
+
+    ShadcnCard(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.lg),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Category icon
+            CategoryIconBadge(
+                category = budget.category,
+                size = 40.dp
+            )
+
+            Spacer(modifier = Modifier.width(Spacing.md))
+
+            // Budget info
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+                ) {
+                    Text(
+                        text = budget.category,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Icon(
+                        imageVector = if (isOverBudget) Icons.Default.Warning else Icons.Default.Info,
+                        contentDescription = null,
+                        tint = alertColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(Spacing.xs))
+
+                // Progress bar
+                LinearProgressIndicator(
+                    progress = { budgetWithSpending.percentageUsed.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = alertColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(Spacing.xs))
+
+                Text(
+                    text = "₹${formatLargeAmount(budgetWithSpending.currentSpending)} / ₹${formatLargeAmount(budget.limitAmount)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.width(Spacing.md))
+
+            // Percentage badge
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(Radius.md))
+                    .background(alertColor.copy(alpha = 0.1f))
+                    .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = percentageText,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = alertColor
                 )
             }
         }

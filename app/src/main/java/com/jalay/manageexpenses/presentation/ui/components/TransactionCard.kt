@@ -3,9 +3,7 @@ package com.jalay.manageexpenses.presentation.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,12 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jalay.manageexpenses.domain.model.Transaction
 import com.jalay.manageexpenses.domain.model.TransactionType
@@ -155,58 +150,7 @@ fun TransactionCard(
     }
 }
 
-@Composable
-fun CategoryIconBadge(
-    category: String,
-    modifier: Modifier = Modifier,
-    size: Dp = 40.dp
-) {
-    Box(
-        modifier = modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = getCategoryIcon(category),
-            contentDescription = null,
-            modifier = Modifier.size(size * 0.5f),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-fun CategoryIcon(
-    category: String,
-    modifier: Modifier = Modifier,
-    size: Dp = 24.dp
-) {
-    Icon(
-        imageVector = getCategoryIcon(category),
-        contentDescription = null,
-        modifier = modifier.size(size),
-        tint = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-}
-
-fun getCategoryIcon(category: String): ImageVector {
-    return when (category.lowercase()) {
-        "shopping" -> Icons.Default.ShoppingBag
-        "food & dining" -> Icons.Default.Restaurant
-        "transport" -> Icons.Default.DirectionsCar
-        "utilities" -> Icons.Default.Build
-        "entertainment" -> Icons.Default.Movie
-        "bills & recharges" -> Icons.Default.PhoneAndroid
-        "transfers" -> Icons.Default.AccountBalance
-        "health" -> Icons.Default.HealthAndSafety
-        "travel" -> Icons.Default.Flight
-        "education" -> Icons.Default.School
-        "groceries" -> Icons.Default.LocalGroceryStore
-        else -> Icons.Default.Category
-    }
-}
+// Category icon functions are now in CategoryHelpers.kt
 
 private fun formatDate(timestamp: Long): String {
     val now = System.currentTimeMillis()

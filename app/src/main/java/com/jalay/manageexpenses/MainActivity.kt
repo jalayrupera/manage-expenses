@@ -13,27 +13,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import com.jalay.manageexpenses.data.local.dao.CategoryMappingDao
-import com.jalay.manageexpenses.data.local.entity.CategoryMappingEntity
-import com.jalay.manageexpenses.data.parser.CategoryAutoMapper
 import com.jalay.manageexpenses.presentation.navigation.AppNavigation
 import com.jalay.manageexpenses.presentation.ui.onboarding.PermissionRequestScreen
 import com.jalay.manageexpenses.presentation.ui.theme.ManageExpensesTheme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-
-    @Inject
-    lateinit var categoryMappingDao: CategoryMappingDao
-
-    @Inject
-    lateinit var categoryAutoMapper: CategoryAutoMapper
 
     // State holder for permission - accessible from callback
     private var permissionGrantedCallback: (() -> Unit)? = null
@@ -72,10 +58,6 @@ class MainActivity : ComponentActivity() {
                         permissionGrantedCallback = { hasPermission = true }
                     }
 
-                    LaunchedEffect(Unit) {
-                        initializeDefaultCategories()
-                    }
-
                     if (!hasPermission) {
                         PermissionRequestScreen(
                             onRequestPermission = {
@@ -88,26 +70,6 @@ class MainActivity : ComponentActivity() {
                     } else {
                         AppNavigation()
                     }
-                }
-            }
-        }
-    }
-
-    private fun initializeDefaultCategories() {
-        CoroutineScope(Dispatchers.IO).launch {
-            val count = categoryMappingDao.getAllMappings().first().size
-            if (count == 0) {
-                val defaultMappings = categoryAutoMapper.getDefaultMappings()
-                defaultMappings.forEach { mapping ->
-                    categoryMappingDao.insert(
-                        CategoryMappingEntity(
-                            id = null,
-                            keyword = mapping.keyword,
-                            category = mapping.category,
-                            icon = mapping.icon,
-                            isCustom = mapping.isCustom
-                        )
-                    )
                 }
             }
         }

@@ -145,39 +145,182 @@ fun AddRecurringDialog(
 ) {
     var name by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("Subscription") }
+    var category by remember { mutableStateOf(availableCategories.first()) }
     var frequency by remember { mutableStateOf(RecurringFrequency.MONTHLY) }
+    var startDate by remember { mutableStateOf(System.currentTimeMillis()) }
     var notes by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    var showCategoryDropdown by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    // Validation
+    val isValidAmount = amount.isEmpty() || amount.matches(Regex("^\\d*\\.?\\d*$"))
+    val parsedAmount = amount.toDoubleOrNull()
+    val isFormValid = name.isNotBlank() && parsedAmount != null && parsedAmount > 0
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Recurring Payment") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") })
-                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount") })
-                // Simple category selection for now
-                OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Category") })
-                
-                Text("Frequency", style = MaterialTheme.typography.labelMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    RecurringFrequency.values().forEach { freq ->
+            Column(
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Error display
+                error?.let { errorMsg ->
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = ExpenseRed.copy(alpha = 0.1f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(Spacing.sm),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Error,
+                                contentDescription = null,
+                                tint = ExpenseRed,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(Spacing.sm))
+                            Text(
+                                text = errorMsg,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = ExpenseRed
+                            )
+                        }
+                    }
+                }
+
+                // Name field
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it; error = null },
+                    label = { Text("Name") },
+                    placeholder = { Text("e.g., Netflix, Gym") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Amount field with validation
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { value ->
+                        if (value.isEmpty() || value.matches(Regex("^\\d*\\.?\\d*$"))) {
+                            amount = value
+                            error = null
+                        }
+                    },
+                    label = { Text("Amount") },
+                    prefix = { Text("₹") },
+                    placeholder = { Text("0.00") },
+                    singleLine = true,
+                    isError = amount.isNotEmpty() && !isValidAmount,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Category dropdown
+                ExposedDropdownMenuBox(
+                    expanded = showCategoryDropdown,
+                    onExpandedChange = { showCategoryDropdown = it },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = {},
+                        label = { Text("Category") },
+                        readOnly = true,
+                        leadingIcon = {
+                            CategoryIconBadge(category = category, size = 24.dp)
+                        },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = showCategoryDropdown)
+                        },
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = showCategoryDropdown,
+                        onDismissRequest = { showCategoryDropdown = false }
+                    ) {
+                        availableCategories.forEach { cat ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CategoryIconBadge(category = cat, size = 24.dp)
+                                        Spacer(modifier = Modifier.width(Spacing.sm))
+                                        Text(cat)
+                                    }
+                                },
+                                onClick = {
+                                    category = cat
+                                    showCategoryDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Date picker
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.CalendarToday, contentDescription = null)
+                    Spacer(modifier = Modifier.width(Spacing.sm))
+                    Text("Start Date: ${FormatUtils.formatShortDate(startDate)}")
+                }
+
+                // Frequency selection
+                Text(
+                    "Frequency",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+                ) {
+                    RecurringFrequency.values().take(4).forEach { freq ->
                         FilterChip(
                             selected = frequency == freq,
                             onClick = { frequency = freq },
-                            label = { Text(freq.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                            label = {
+                                Text(
+                                    freq.name.lowercase().replaceFirstChar { it.uppercase() },
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
+
+                // Notes field (optional)
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val amt = amount.toDoubleOrNull() ?: 0.0
-                    onConfirm(name, amt, category, frequency, System.currentTimeMillis(), notes)
+                    val amt = amount.toDoubleOrNull()
+                    when {
+                        name.isBlank() -> error = "Please enter a name"
+                        amt == null || amt <= 0 -> error = "Please enter a valid amount"
+                        else -> onConfirm(name, amt, category, frequency, startDate, notes.ifBlank { null })
+                    }
                 },
-                enabled = name.isNotBlank() && amount.isNotBlank()
+                enabled = isFormValid
             ) {
                 Text("Add")
             }
@@ -186,4 +329,24 @@ fun AddRecurringDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+
+    // Date picker dialog
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = startDate)
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { startDate = it }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 }

@@ -21,10 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.jalay.manageexpenses.domain.model.SortType
 import com.jalay.manageexpenses.presentation.ui.components.*
 import com.jalay.manageexpenses.presentation.ui.theme.*
 import com.jalay.manageexpenses.presentation.viewmodel.FilterType
-import com.jalay.manageexpenses.presentation.viewmodel.SortType
 import com.jalay.manageexpenses.presentation.viewmodel.TransactionsListViewModel
 import com.jalay.manageexpenses.presentation.viewmodel.TransactionListItem
 import androidx.paging.LoadState

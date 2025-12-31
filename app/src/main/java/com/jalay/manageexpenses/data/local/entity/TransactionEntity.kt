@@ -1,9 +1,18 @@
 package com.jalay.manageexpenses.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "transactions")
+@Entity(
+    tableName = "transactions",
+    indices = [
+        Index(value = ["timestamp"]),
+        Index(value = ["category"]),
+        Index(value = ["transactionType"]),
+        Index(value = ["transactionRef"], unique = true)
+    ]
+)
 data class TransactionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long? = null,

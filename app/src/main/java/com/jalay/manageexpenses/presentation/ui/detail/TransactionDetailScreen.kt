@@ -1,21 +1,30 @@
 package com.jalay.manageexpenses.presentation.ui.detail
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.jalay.manageexpenses.AppContainer
+import com.jalay.manageexpenses.domain.model.Transaction
 import com.jalay.manageexpenses.domain.model.TransactionType
-import com.jalay.manageexpenses.presentation.ui.theme.ReceivedColor
-import com.jalay.manageexpenses.presentation.ui.theme.SentColor
+import com.jalay.manageexpenses.presentation.ui.components.*
+import com.jalay.manageexpenses.presentation.ui.theme.*
 import com.jalay.manageexpenses.presentation.viewmodel.TransactionDetailUiState
+import com.jalay.manageexpenses.presentation.viewmodel.TransactionDetailViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -26,40 +35,50 @@ fun TransactionDetailScreen(
     transactionId: Long,
     onNavigateBack: () -> Unit
 ) {
-    val viewModel: com.jalay.manageexpenses.presentation.viewmodel.TransactionDetailViewModel =
-        androidx.lifecycle.viewmodel.compose.viewModel(
-            factory = TransactionDetailViewModelFactory(appContainer)
-        )
+    val viewModel: TransactionDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = TransactionDetailViewModelFactory(appContainer)
+    )
     val uiState by viewModel.uiState.collectAsState()
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(transactionId) {
         viewModel.loadTransaction(transactionId)
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Transaction Details") },
+                title = {
+                    Text(
+                        text = "Details",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
         }
     ) { paddingValues ->
         when (val state = uiState) {
             is TransactionDetailUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                LoadingState(
+                    modifier = Modifier.padding(paddingValues),
+                    message = "Loading details..."
+                )
             }
+
             is TransactionDetailUiState.Success -> {
                 state.transaction?.let { transaction ->
                     TransactionDetailContent(
@@ -73,23 +92,31 @@ fun TransactionDetailScreen(
                     )
                 }
             }
+
             is TransactionDetailUiState.Error -> {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
+                        .padding(paddingValues)
+                        .padding(Spacing.xl),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Text("Error: ${state.message}")
+                    Text(
+                        text = "Error: ${state.message}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ExpenseRed
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionDetailContent(
-    transaction: com.jalay.manageexpenses.domain.model.Transaction,
+    transaction: Transaction,
     availableCategories: List<String>,
     onNotesChange: (String) -> Unit,
     onCategoryChange: (String) -> Unit,
@@ -97,110 +124,226 @@ fun TransactionDetailContent(
 ) {
     var notesText by remember { mutableStateOf(transaction.notes ?: "") }
     var selectedCategory by remember { mutableStateOf(transaction.category) }
+    var showCategoryPicker by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+
+    val isExpense = transaction.transactionType == TransactionType.SENT
+    val amountColor = if (isExpense) ExpenseRed else IncomeGreen
+    val amountPrefix = if (isExpense) "-" else "+"
 
     Column(
         modifier = modifier
-            .padding(16.dp)
+            .padding(Spacing.lg)
             .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.lg)
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
+        // Amount Header Card
+        ShadcnCard(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(Spacing.xl),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                com.jalay.manageexpenses.presentation.ui.components.CategoryIcon(
+                // Category Icon
+                CategoryIconBadge(
                     category = transaction.category,
-                    size = 64.dp
+                    size = 56.dp
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                val color = if (transaction.transactionType == TransactionType.SENT) {
-                    SentColor
-                } else {
-                    ReceivedColor
-                }
-                val prefix = if (transaction.transactionType == TransactionType.SENT) "-" else "+"
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
+
+                // Amount
                 Text(
-                    text = "$prefix₹${transaction.amount}",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = color
+                    text = "$amountPrefix₹${formatAmount(transaction.amount)}",
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = amountColor
                 )
+
+                Spacer(modifier = Modifier.height(Spacing.xs))
+
+                // Recipient
                 Text(
-                    text = transaction.recipientName,
-                    style = MaterialTheme.typography.titleLarge
+                    text = transaction.recipientName.ifEmpty { "Unknown" },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(Spacing.sm))
+
+                // Status Badge
+                StatusBadge(
+                    text = if (isExpense) "Sent" else "Received",
+                    isPositive = !isExpense
                 )
             }
         }
 
-        DetailRow("Date", formatDate(transaction.timestamp))
-        DetailRow("Type", transaction.transactionType.name)
-        DetailRow("UPI App", transaction.upiApp)
-        DetailRow("Reference", transaction.transactionRef ?: "N/A")
-
-        OutlinedTextField(
-            value = selectedCategory,
-            onValueChange = {},
-            label = { Text("Category") },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = false
-        )
-
-        var expanded by remember { mutableStateOf(false) }
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Button(
-                onClick = { expanded = true },
-                modifier = Modifier.fillMaxWidth()
+        // Transaction Details Card
+        ShadcnCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                Text("Change Category")
+                Text(
+                    text = "Transaction Details",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                ShadcnDivider()
+
+                DetailRow("Date", formatDate(transaction.timestamp))
+                DetailRow("Time", formatTime(transaction.timestamp))
+                DetailRow("UPI App", transaction.upiApp)
+                DetailRow("Reference", transaction.transactionRef ?: "N/A")
             }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
+        }
+
+        // Category Picker Card
+        ShadcnCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                availableCategories.forEach { category ->
-                    DropdownMenuItem(
-                        text = { Text(category) },
-                        onClick = {
-                            selectedCategory = category
-                            onCategoryChange(category)
-                            expanded = false
+                Text(
+                    text = "Category",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                // Category Selector
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { showCategoryPicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radius.md),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        ),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                            ) {
+                                CategoryIcon(
+                                    category = selectedCategory,
+                                    size = 20.dp
+                                )
+                                Text(
+                                    text = selectedCategory,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    )
+                    }
+
+                    DropdownMenu(
+                        expanded = showCategoryPicker,
+                        onDismissRequest = { showCategoryPicker = false },
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        availableCategories.forEach { category ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                                    ) {
+                                        CategoryIcon(category = category, size = 20.dp)
+                                        Text(
+                                            text = category,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    selectedCategory = category
+                                    onCategoryChange(category)
+                                    showCategoryPicker = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
 
-        OutlinedTextField(
-            value = notesText,
-            onValueChange = {
-                notesText = it
-                onNotesChange(it)
-            },
-            label = { Text("Notes") },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 3,
-            maxLines = 5,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-        )
+        // Notes Card
+        ShadcnCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                Text(
+                    text = "Notes",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                OutlinedTextField(
+                    value = notesText,
+                    onValueChange = {
+                        notesText = it
+                        onNotesChange(it)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            text = "Add a note...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    minLines = 3,
+                    maxLines = 5,
+                    shape = RoundedCornerShape(Radius.md),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.outline,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        focusedContainerColor = MaterialTheme.colorScheme.background,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.background,
+                        cursorColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    textStyle = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
+        // Spacer at the bottom
+        Spacer(modifier = Modifier.height(Spacing.lg))
     }
 }
 
 @Composable
-fun DetailRow(
+private fun DetailRow(
     label: String,
     value: String
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(vertical = Spacing.xs),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
@@ -210,13 +353,27 @@ fun DetailRow(
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
 
+private fun formatAmount(amount: Double): String {
+    return if (amount >= 1000) {
+        String.format("%,.0f", amount)
+    } else {
+        String.format("%.2f", amount)
+    }
+}
+
 private fun formatDate(timestamp: Long): String {
-    val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+    val sdf = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault())
+    return sdf.format(Date(timestamp))
+}
+
+private fun formatTime(timestamp: Long): String {
+    val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
 
@@ -224,9 +381,9 @@ class TransactionDetailViewModelFactory(
     private val appContainer: AppContainer
 ) : androidx.lifecycle.ViewModelProvider.Factory {
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(com.jalay.manageexpenses.presentation.viewmodel.TransactionDetailViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(TransactionDetailViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return com.jalay.manageexpenses.presentation.viewmodel.TransactionDetailViewModel(
+            return TransactionDetailViewModel(
                 getTransactionsUseCase = appContainer.getGetTransactionsUseCase(appContainer.getContext()),
                 updateTransactionNotesUseCase = appContainer.getUpdateTransactionNotesUseCase(appContainer.getContext()),
                 updateCategoryUseCase = appContainer.getUpdateCategoryUseCase(appContainer.getContext())

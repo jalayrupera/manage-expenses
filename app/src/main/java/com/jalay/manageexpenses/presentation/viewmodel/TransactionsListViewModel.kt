@@ -22,6 +22,9 @@ class TransactionsListViewModel(
     val uiState: StateFlow<TransactionsListUiState> = _uiState.asStateFlow()
 
     private var searchQuery: String = ""
+    private var currentSortType: SortType = SortType.DATE_DESC
+    private var currentFilterType: FilterType = FilterType.ALL
+    private var allTransactions: List<Transaction> = emptyList()
 
     init {
         loadTransactions()
@@ -38,12 +41,8 @@ class TransactionsListViewModel(
                 }
 
                 transactionsFlow.collect { transactions ->
-                    val sortedTransactions = transactions.sortedByDescending { it.timestamp }
-                    _uiState.value = TransactionsListUiState.Success(
-                        transactions = sortedTransactions,
-                        filteredTransactions = sortedTransactions,
-                        filterType = FilterType.ALL
-                    )
+                    allTransactions = transactions
+                    applyFiltersAndSort()
                 }
             } catch (e: Exception) {
                 _uiState.value = TransactionsListUiState.Error(e.message ?: "Unknown error")
@@ -62,19 +61,16 @@ class TransactionsListViewModel(
                         transactions.filter { it.category == filterCategory }
                     } else {
                         transactions
-                    }.sortedByDescending { it.timestamp }
-
-                    _uiState.value = TransactionsListUiState.Success(
-                        transactions = filtered,
-                        filteredTransactions = filtered,
-                        filterType = FilterType.ALL
-                    )
+                    }
+                    allTransactions = filtered
+                    applyFiltersAndSort()
                 }
             }
         }
     }
 
     fun filterByType(type: FilterType) {
+        currentFilterType = type
         viewModelScope.launch {
             val baseFlow = if (filterCategory != null) {
                 getTransactionsUseCase.byCategory(filterCategory)
@@ -91,15 +87,32 @@ class TransactionsListViewModel(
                     FilterType.ALL -> transactions
                     FilterType.SENT -> transactions.filter { it.transactionType == TransactionType.SENT }
                     FilterType.RECEIVED -> transactions.filter { it.transactionType == TransactionType.RECEIVED }
-                }.sortedByDescending { it.timestamp }
-
-                _uiState.value = TransactionsListUiState.Success(
-                    transactions = filtered,
-                    filteredTransactions = filtered,
-                    filterType = type
-                )
+                }
+                allTransactions = filtered
+                applyFiltersAndSort()
             }
         }
+    }
+
+    fun sortBy(sortType: SortType) {
+        currentSortType = sortType
+        applyFiltersAndSort()
+    }
+
+    private fun applyFiltersAndSort() {
+        val sorted = when (currentSortType) {
+            SortType.DATE_DESC -> allTransactions.sortedByDescending { it.timestamp }
+            SortType.DATE_ASC -> allTransactions.sortedBy { it.timestamp }
+            SortType.AMOUNT_DESC -> allTransactions.sortedByDescending { it.amount }
+            SortType.AMOUNT_ASC -> allTransactions.sortedBy { it.amount }
+        }
+
+        _uiState.value = TransactionsListUiState.Success(
+            transactions = sorted,
+            filteredTransactions = sorted,
+            filterType = currentFilterType,
+            sortType = currentSortType
+        )
     }
 }
 
@@ -109,11 +122,19 @@ sealed class TransactionsListUiState {
     data class Success(
         val transactions: List<Transaction>,
         val filteredTransactions: List<Transaction>,
-        val filterType: FilterType
+        val filterType: FilterType,
+        val sortType: SortType = SortType.DATE_DESC
     ) : TransactionsListUiState()
     data class Error(val message: String) : TransactionsListUiState()
 }
 
 enum class FilterType {
     ALL, SENT, RECEIVED
+}
+
+enum class SortType {
+    DATE_DESC,   // Latest first (default)
+    DATE_ASC,    // Oldest first
+    AMOUNT_DESC, // Highest amount first
+    AMOUNT_ASC   // Lowest amount first
 }

@@ -1,28 +1,29 @@
 package com.jalay.manageexpenses.presentation.ui.dashboard
 
 import android.content.Context
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jalay.manageexpenses.AppContainer
-import com.jalay.manageexpenses.presentation.ui.components.TransactionCard
+import com.jalay.manageexpenses.domain.model.Transaction
+import com.jalay.manageexpenses.presentation.ui.components.*
+import com.jalay.manageexpenses.presentation.ui.theme.*
 import com.jalay.manageexpenses.presentation.viewmodel.DashboardViewModel
 import com.jalay.manageexpenses.presentation.viewmodel.DashboardUiState
-import java.text.NumberFormat
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,34 +40,45 @@ fun DashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Manage Expenses") },
+                title = {
+                    Text(
+                        text = "Expenses",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 actions = {
                     IconButton(onClick = onNavigateToCategories) {
-                        Icon(Icons.Default.Category, "Categories")
+                        Icon(
+                            Icons.Outlined.Category,
+                            contentDescription = "Categories",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                     IconButton(onClick = onNavigateToExport) {
-                        Icon(Icons.Default.IosShare, "Export")
+                        Icon(
+                            Icons.Outlined.FileDownload,
+                            contentDescription = "Export",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
         }
     ) { paddingValues ->
         when (val state = uiState) {
             is DashboardUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Loading data...")
-                    }
-                }
+                LoadingState(
+                    modifier = Modifier.padding(paddingValues),
+                    message = "Loading your data..."
+                )
             }
 
             is DashboardUiState.InitialSetup -> {
@@ -95,24 +107,11 @@ fun DashboardScreen(
             }
 
             is DashboardUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Error: ${state.message}",
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.loadStatistics() }) {
-                            Text("Retry")
-                        }
-                    }
-                }
+                ErrorState(
+                    modifier = Modifier.padding(paddingValues),
+                    message = state.message,
+                    onRetry = { viewModel.loadStatistics() }
+                )
             }
         }
     }
@@ -126,35 +125,60 @@ private fun InitialSetupScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(Spacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // Icon
+        Box(
+            modifier = Modifier
+                .size(80.dp)
+                .clip(RoundedCornerShape(Radius.xl))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.AccountBalanceWallet,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.height(Spacing.xl))
+
         Text(
-            text = "Welcome!",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold
+            text = "Welcome",
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
         )
-        Spacer(modifier = Modifier.height(16.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.sm))
+
         Text(
-            text = "Let's import your UPI transaction history from SMS messages.",
+            text = "Import your UPI transaction history from SMS messages to get started.",
             style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(8.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.xs))
+
         Text(
             text = "This is a one-time process. Future transactions will be tracked automatically.",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(
+
+        Spacer(modifier = Modifier.height(Spacing.xxl))
+
+        PrimaryButton(
+            text = "Import Last 30 Days",
             onClick = onStartImport,
             modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Import Last 30 Days")
-        }
+        )
     }
 }
 
@@ -168,42 +192,53 @@ private fun ImportingScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(Spacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         CircularProgressIndicator(
-            modifier = Modifier.size(64.dp)
+            modifier = Modifier.size(56.dp),
+            strokeWidth = 4.dp,
+            color = MaterialTheme.colorScheme.onSurface
         )
-        Spacer(modifier = Modifier.height(24.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.xl))
+
         Text(
-            text = if (isInitial) "Setting up your data..." else "Importing SMS...",
+            text = if (isInitial) "Setting up..." else "Importing...",
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
         )
-        Spacer(modifier = Modifier.height(16.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.lg))
+
         if (total > 0) {
+            // Progress bar
             LinearProgressIndicator(
                 progress = processed.toFloat() / total.toFloat(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(Radius.full)),
+                color = MaterialTheme.colorScheme.onSurface,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
-            Spacer(modifier = Modifier.height(8.dp))
+
+            Spacer(modifier = Modifier.height(Spacing.md))
+
             Text(
-                text = "$processed of $total messages processed",
-                style = MaterialTheme.typography.bodyMedium
+                text = "$processed of $total messages",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
             Text(
                 text = "Scanning SMS messages...",
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "This may take a moment. Please wait...",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
@@ -214,78 +249,76 @@ private fun DashboardContent(
     onNavigateToTransactions: () -> Unit,
     onNavigateToTransactionDetail: (Long) -> Unit
 ) {
-    val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("en", "IN")) }
-
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(Spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Spacing.lg)
     ) {
-        // Summary Cards
+        // Balance Overview Card
+        item {
+            BalanceOverviewCard(
+                totalSent = statistics.totalSent,
+                totalReceived = statistics.totalReceived
+            )
+        }
+
+        // Summary Stats Row
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                SummaryCard(
-                    title = "Sent",
-                    amount = statistics.totalSent,
+                StatCard(
+                    title = "Spent",
+                    value = "₹${formatLargeAmount(statistics.totalSent)}",
                     icon = Icons.Default.ArrowUpward,
-                    iconTint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    valueColor = ExpenseRed,
+                    iconBackgroundColor = ExpenseRed.copy(alpha = 0.1f),
+                    iconColor = ExpenseRed
                 )
-                SummaryCard(
+                StatCard(
                     title = "Received",
-                    amount = statistics.totalReceived,
+                    value = "₹${formatLargeAmount(statistics.totalReceived)}",
                     icon = Icons.Default.ArrowDownward,
-                    iconTint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    valueColor = IncomeGreen,
+                    iconBackgroundColor = IncomeGreen.copy(alpha = 0.1f),
+                    iconColor = IncomeGreen
                 )
             }
         }
 
-        // Transactions Header
+        // Recent Transactions Header
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Recent Transactions",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                TextButton(onClick = onNavigateToTransactions) {
-                    Text("See All")
-                }
-            }
-        }
-
-        // Transaction List
-        if (statistics.recentTransactions.isEmpty()) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+            SectionHeader(
+                title = "Recent Transactions",
+                action = {
+                    TextButton(onClick = onNavigateToTransactions) {
                         Text(
-                            text = "No transactions found",
-                            style = MaterialTheme.typography.bodyMedium,
+                            text = "See All",
+                            style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
+            )
+        }
+
+        // Transaction List or Empty State
+        if (statistics.recentTransactions.isEmpty()) {
+            item {
+                EmptyState(
+                    icon = Icons.Default.Receipt,
+                    title = "No transactions yet",
+                    subtitle = "Your recent transactions will appear here"
+                )
             }
         } else {
-            items(statistics.recentTransactions) { transaction ->
+            items(
+                items = statistics.recentTransactions,
+                key = { it.id ?: it.hashCode() }
+            ) { transaction ->
                 TransactionCard(
                     transaction = transaction,
                     onClick = { transaction.id?.let { onNavigateToTransactionDetail(it) } }
@@ -296,116 +329,132 @@ private fun DashboardContent(
 }
 
 @Composable
-private fun SummaryCard(
-    title: String,
-    amount: Double,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    iconTint: androidx.compose.ui.graphics.Color,
-    modifier: Modifier = Modifier
+private fun BalanceOverviewCard(
+    totalSent: Double,
+    totalReceived: Double
 ) {
-    Card(
-        modifier = modifier
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "₹${String.format("%.2f", amount)}",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
+    val netBalance = totalReceived - totalSent
+    val isPositive = netBalance >= 0
 
-@Composable
-fun CategorySummaryItem(summary: com.jalay.manageexpenses.domain.model.CategorySummary) {
-    Card(
+    ShadcnCard(
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(Spacing.xl)
         ) {
+            Text(
+                text = "Net Balance",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(Spacing.xs))
+
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                com.jalay.manageexpenses.presentation.ui.components.CategoryIcon(
-                    category = summary.category,
-                    modifier = Modifier.size(40.dp)
+                Text(
+                    text = "${if (isPositive) "+" else "-"}₹${formatLargeAmount(kotlin.math.abs(netBalance))}",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isPositive) IncomeGreen else ExpenseRed
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+            }
+
+            Spacer(modifier = Modifier.height(Spacing.md))
+
+            ShadcnDivider()
+
+            Spacer(modifier = Modifier.height(Spacing.md))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Column {
                     Text(
-                        text = summary.category,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${summary.transactionCount} transactions",
+                        text = "Total Spent",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Text(
+                        text = "₹${formatLargeAmount(totalSent)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ExpenseRed
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "Total Received",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "₹${formatLargeAmount(totalReceived)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = IncomeGreen
+                    )
                 }
             }
-            Text(
-                text = "₹${summary.totalAmount}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
         }
     }
 }
 
 @Composable
-fun ImportProgressDialog(
-    processed: Int,
-    total: Int,
-    onDismiss: () -> Unit
+private fun ErrorState(
+    modifier: Modifier = Modifier,
+    message: String,
+    onRetry: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = { },
-        title = { Text("Importing SMS") },
-        text = {
-            Column {
-                Text("Processing SMS messages...")
-                Spacer(modifier = Modifier.height(16.dp))
-                LinearProgressIndicator(
-                    progress = if (total > 0) processed.toFloat() / total.toFloat() else 0f,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("$processed / $total messages processed")
-            }
-        },
-        confirmButton = {
-            if (processed == total) {
-                TextButton(onClick = onDismiss) {
-                    Text("Done")
-                }
-            }
-        }
-    )
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(Spacing.xl),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        IconBadge(
+            icon = Icons.Default.ErrorOutline,
+            size = 64.dp,
+            backgroundColor = ExpenseRed.copy(alpha = 0.1f),
+            iconColor = ExpenseRed
+        )
+
+        Spacer(modifier = Modifier.height(Spacing.lg))
+
+        Text(
+            text = "Something went wrong",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.height(Spacing.xs))
+
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(Spacing.xl))
+
+        SecondaryButton(
+            text = "Try Again",
+            onClick = onRetry
+        )
+    }
+}
+
+private fun formatLargeAmount(amount: Double): String {
+    return when {
+        amount >= 10_00_000 -> String.format("%.1fL", amount / 100000)
+        amount >= 1000 -> String.format("%,.0f", amount)
+        else -> String.format("%.2f", amount)
+    }
 }
 
 class DashboardViewModelFactory(

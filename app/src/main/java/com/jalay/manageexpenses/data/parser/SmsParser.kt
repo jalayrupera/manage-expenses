@@ -12,6 +12,7 @@ class SmsParser(private val categoryAutoMapper: CategoryAutoMapper) {
             PhonePePattern(),
             PaytmPattern(),
             BhimPattern(),
+            QntamcPattern(),
             GenericUpiPattern()
         )
     }
@@ -176,6 +177,41 @@ class SmsParser(private val categoryAutoMapper: CategoryAutoMapper) {
             val ref = if (refMatcher.find()) refMatcher.group(1) else null
 
             return ParseResult(amount, recipient, type, "BHIM", ref)
+        }
+    }
+
+    private class QntamcPattern : Upipattern {
+        override fun parse(smsBody: String, sender: String): ParseResult? {
+            if (!sender.contains("qntamc", ignoreCase = true)) return null
+
+            val type = when {
+                smsBody.contains("debited", ignoreCase = true) ||
+                smsBody.contains("sent", ignoreCase = true) ||
+                smsBody.contains("paid", ignoreCase = true) -> TransactionType.SENT
+                smsBody.contains("credited", ignoreCase = true) ||
+                smsBody.contains("received", ignoreCase = true) -> TransactionType.RECEIVED
+                else -> return null
+            }
+
+            val amountPattern = Pattern.compile("(?:Rs|INR)\\.?\\s*([\\d,]+\\.?\\d*)", Pattern.CASE_INSENSITIVE)
+            val amountMatcher = amountPattern.matcher(smsBody)
+            if (!amountMatcher.find()) return null
+
+            val amount = amountMatcher.group(1)?.replace(",", "")?.toDoubleOrNull() ?: return null
+
+            val recipientPattern = Pattern.compile("to\\s+([^\\n]+?)(?:\\s+(?:via|using|on)|$)", Pattern.CASE_INSENSITIVE)
+            val recipientMatcher = recipientPattern.matcher(smsBody)
+            val recipient = if (recipientMatcher.find()) {
+                recipientMatcher.group(1)?.trim()
+            } else {
+                ""
+            } ?: return null
+
+            val refPattern = Pattern.compile("(?:ref|transaction)\\s*(?:#|id)?[:\\s]*([A-Za-z0-9]+)", Pattern.CASE_INSENSITIVE)
+            val refMatcher = refPattern.matcher(smsBody)
+            val ref = if (refMatcher.find()) refMatcher.group(1) else null
+
+            return ParseResult(amount, recipient, type, "QNTAMC", ref)
         }
     }
 

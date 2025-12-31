@@ -80,6 +80,9 @@ class MainActivity : ComponentActivity() {
                         PermissionRequestScreen(
                             onRequestPermission = {
                                 requestPermissionLauncher.launch(Manifest.permission.READ_SMS)
+                            },
+                            onSkip = {
+                                hasPermission = true
                             }
                         )
                     } else {

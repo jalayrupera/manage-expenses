@@ -21,7 +21,8 @@ import com.jalay.manageexpenses.presentation.ui.theme.*
 
 @Composable
 fun PermissionRequestScreen(
-    onRequestPermission: () -> Unit
+    onRequestPermission: () -> Unit,
+    onSkip: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -101,6 +102,15 @@ fun PermissionRequestScreen(
         )
 
         Spacer(modifier = Modifier.height(Spacing.md))
+
+        // Skip button
+        SecondaryButton(
+            text = "Skip for now",
+            onClick = onSkip,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(Spacing.lg))
 
         // Privacy note
         Text(

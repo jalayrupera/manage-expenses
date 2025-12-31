@@ -18,12 +18,16 @@ class ExportViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ExportUiState>(ExportUiState.Idle)
     val uiState: StateFlow<ExportUiState> = _uiState.asStateFlow()
 
-    fun export(format: ExportDataUseCase.ExportFormat) {
+    fun export(
+        format: ExportDataUseCase.ExportFormat,
+        startTime: Long? = null,
+        endTime: Long? = null
+    ) {
         viewModelScope.launch {
             _uiState.value = ExportUiState.Exporting
-            
-            val result = exportDataUseCase(format)
-            
+
+            val result = exportDataUseCase(format, startTime, endTime)
+
             result.onSuccess { path ->
                 _uiState.value = ExportUiState.Success(path)
             }.onFailure { error ->

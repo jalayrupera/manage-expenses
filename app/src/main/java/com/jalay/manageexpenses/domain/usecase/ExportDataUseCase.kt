@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class ExportDataUseCase(
@@ -51,6 +52,13 @@ class ExportDataUseCase(
 
     private fun exportToCsv(transactions: List<com.jalay.manageexpenses.domain.model.Transaction>, file: File) {
         val dateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
+
+        val sentTransactions = transactions.filter { it.transactionType.name == "SENT" }
+        val receivedTransactions = transactions.filter { it.transactionType.name == "RECEIVED" }
+        val totalSent = sentTransactions.sumOf { it.amount }
+        val totalReceived = receivedTransactions.sumOf { it.amount }
+        val netAmount = totalReceived - totalSent
+
         val rows = transactions.map { transaction ->
             listOf(
                 dateFormat.format(java.util.Date(transaction.timestamp)),
@@ -67,16 +75,32 @@ class ExportDataUseCase(
         csvWriter().open(file) {
             writeRow(listOf("Date", "Type", "Recipient", "Category", "Amount", "Notes", "UPI App", "Reference"))
             rows.forEach { row -> writeRow(row) }
+
+            writeRow(listOf())
+            writeRow(listOf("Totals"))
+            writeRow(listOf("Total Sent:", "₹${String.format("%.2f", totalSent)}"))
+            writeRow(listOf("Total Received:", "₹${String.format("%.2f", totalReceived)}"))
+            writeRow(listOf("Net Amount:", "₹${String.format("%.2f", netAmount)}"))
         }
     }
 
     private fun exportToPdf(transactions: List<com.jalay.manageexpenses.domain.model.Transaction>, file: File) {
         val pdfDocument = android.graphics.pdf.PdfDocument()
         val paint = android.graphics.Paint()
+        val boldPaint = android.graphics.Paint().apply {
+            color = android.graphics.Color.BLACK
+            isFakeBoldText = true
+        }
         val dateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
 
+        val sentTransactions = transactions.filter { it.transactionType.name == "SENT" }
+        val receivedTransactions = transactions.filter { it.transactionType.name == "RECEIVED" }
+        val totalSent = sentTransactions.sumOf { it.amount }
+        val totalReceived = receivedTransactions.sumOf { it.amount }
+        val netAmount = totalReceived - totalSent
+
         val transactionsToExport = transactions.take(50)
-        val itemsPerPage = 35
+        val itemsPerPage = 25
         val pages = transactionsToExport.chunked(itemsPerPage)
 
         pages.forEachIndexed { pageIndex, pageTransactions ->
@@ -85,19 +109,52 @@ class ExportDataUseCase(
             val canvas = page.canvas
 
             if (pageIndex == 0) {
-                paint.textSize = 24f
-                paint.color = android.graphics.Color.BLACK
-                canvas.drawText("UPI Transactions Report", 150f, 50f, paint)
+                boldPaint.textSize = 24f
+                canvas.drawText("UPI Transactions Report", 150f, 50f, boldPaint)
+
+                paint.textSize = 12f
+                val reportDate = "Generated: ${SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date())}"
+                canvas.drawText(reportDate, 150f, 75f, paint)
+
+                paint.textSize = 14f
+                paint.isFakeBoldText = true
+                canvas.drawText("Summary", 40f, 110f, paint)
+                paint.isFakeBoldText = false
+                paint.textSize = 12f
+
+                val startY = 130f
+                canvas.drawText("Total Transactions: ${transactions.size}", 40f, startY, paint)
+                canvas.drawText("Total Sent: ₹${String.format("%.2f", totalSent)}", 40f, startY + 20f, paint)
+                canvas.drawText("Total Received: ₹${String.format("%.2f", totalReceived)}", 40f, startY + 40f, paint)
+                canvas.drawText("Net Amount: ₹${String.format("%.2f", netAmount)}", 40f, startY + 60f, paint)
+
+                boldPaint.textSize = 14f
+                canvas.drawText("Transactions", 40f, startY + 100f, boldPaint)
+
+                paint.isFakeBoldText = true
+                canvas.drawText("Date", 40f, startY + 130f, paint)
+                canvas.drawText("Type", 120f, startY + 130f, paint)
+                canvas.drawText("Recipient", 180f, startY + 130f, paint)
+                canvas.drawText("Amount", 450f, startY + 130f, paint)
+                paint.isFakeBoldText = false
+
+                paint.strokeWidth = 1f
+                canvas.drawLine(40f, startY + 140f, 550f, startY + 140f, paint)
             }
 
             paint.textSize = 10f
-            var yPos = if (pageIndex == 0) 100f else 50f
+            var yPos = if (pageIndex == 0) 290f else 50f
 
             pageTransactions.forEach { transaction ->
                 val date = dateFormat.format(java.util.Date(transaction.timestamp))
-                val line = "$date | ${transaction.transactionType.name} | ${transaction.recipientName.take(20)} | ₹${transaction.amount} | ${transaction.category}"
-                canvas.drawText(line, 20f, yPos, paint)
-                yPos += 20f
+                val recipient = transaction.recipientName.take(20)
+                val type = transaction.transactionType.name.take(4)
+
+                canvas.drawText(date, 40f, yPos, paint)
+                canvas.drawText(type, 120f, yPos, paint)
+                canvas.drawText(recipient, 180f, yPos, paint)
+                canvas.drawText("₹${String.format("%.2f", transaction.amount)}", 450f, yPos, paint)
+                yPos += 18f
             }
 
             pdfDocument.finishPage(page)
@@ -107,8 +164,8 @@ class ExportDataUseCase(
             val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, 1).create()
             val page = pdfDocument.startPage(pageInfo)
             val canvas = page.canvas
-            paint.textSize = 24f
-            canvas.drawText("No transactions to export", 150f, 400f, paint)
+            boldPaint.textSize = 24f
+            canvas.drawText("No transactions to export", 150f, 400f, boldPaint)
             pdfDocument.finishPage(page)
         }
 

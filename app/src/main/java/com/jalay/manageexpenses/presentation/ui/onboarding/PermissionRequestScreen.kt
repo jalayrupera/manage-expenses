@@ -11,8 +11,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun PermissionRequestScreen(
-    onRequestPermission: () -> Unit,
-    onPermissionGranted: () -> Unit
+    onRequestPermission: () -> Unit
 ) {
     Column(
         modifier = Modifier

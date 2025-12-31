@@ -22,20 +22,21 @@ import kotlinx.coroutines.launch
 fun TransactionsListScreen(
     appContainer: AppContainer,
     onNavigateToDetail: (Long) -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    filterCategory: String? = null
 ) {
     val viewModel: TransactionsListViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = TransactionsListViewModelFactory(appContainer)
+        factory = TransactionsListViewModelFactory(appContainer, filterCategory)
     )
     val uiState by viewModel.uiState.collectAsState()
-    val scope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
+    val title = filterCategory ?: "Transactions"
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Transactions") },
+                title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, "Back")
@@ -154,14 +155,16 @@ fun FilterChips(
 }
 
 class TransactionsListViewModelFactory(
-    private val appContainer: AppContainer
+    private val appContainer: AppContainer,
+    private val filterCategory: String? = null
 ) : androidx.lifecycle.ViewModelProvider.Factory {
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(TransactionsListViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
             return TransactionsListViewModel(
                 getTransactionsUseCase = appContainer.getGetTransactionsUseCase(appContainer.getContext()),
-                searchTransactionsUseCase = appContainer.getSearchTransactionsUseCase(appContainer.getContext())
+                searchTransactionsUseCase = appContainer.getSearchTransactionsUseCase(appContainer.getContext()),
+                filterCategory = filterCategory
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

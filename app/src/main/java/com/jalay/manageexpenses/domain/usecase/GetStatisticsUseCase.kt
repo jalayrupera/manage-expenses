@@ -45,12 +45,18 @@ class GetStatisticsUseCase(
 
         val monthlySummaries = getMonthlySummaries(transactions)
 
+        // Get recent transactions sorted by timestamp (most recent first)
+        val recentTransactions = transactions
+            .sortedByDescending { it.timestamp }
+            .take(50)
+
         return Statistics(
             totalSent = totalSent,
             totalReceived = totalReceived,
             netBalance = totalReceived - totalSent,
             categorySummaries = categorySummaries,
-            monthlySummaries = monthlySummaries
+            monthlySummaries = monthlySummaries,
+            recentTransactions = recentTransactions
         )
     }
 
@@ -100,6 +106,7 @@ class GetStatisticsUseCase(
         val totalReceived: Double,
         val netBalance: Double,
         val categorySummaries: List<CategorySummary>,
-        val monthlySummaries: List<MonthlySummary>
+        val monthlySummaries: List<MonthlySummary>,
+        val recentTransactions: List<Transaction>
     )
 }
